@@ -55,7 +55,9 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
   const [status, setStatus]               = useState<'todo' | 'inprogress' | 'done'>('todo')
   const [priorityLevel, setPriorityLevel] = useState<PriorityLevel>('P1')
   const [impact, setImpact]               = useState<ImpactLevel>('high')
+  const [plannedStartDate, setPlannedStartDate] = useState('')
   const [plannedEndDate, setPlannedEndDate]           = useState('')
+  const [actualStartDate, setActualStartDate]         = useState('')
   const [plannedEstimatedHours, setPlannedEstimatedHours] = useState('0')
   const [cardLevel, setCardLevel]         = useState<CardLevel>('task')
   const [projects, setProjects]           = useState<Project[]>([])
@@ -112,7 +114,8 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
   const reset = () => {
     setTitle(''); setDescription(''); setAssignee(''); setReporter(user?.name || '')
     setStatus('todo'); setPriorityLevel('P1'); setImpact('high')
-    setPlannedEndDate(''); setPlannedEstimatedHours('0'); setCardLevel('task')
+    setPlannedStartDate(''); setPlannedEndDate(''); setActualStartDate('')
+    setPlannedEstimatedHours('0'); setCardLevel('task')
     setError('')
   }
 
@@ -141,8 +144,9 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
         impact,
         urgency: 'medium',
         priorityLevel,
-        plannedStartDate: null,
+        plannedStartDate: plannedStartDate ? new Date(plannedStartDate) : null,
         plannedEndDate: plannedEndDate ? new Date(plannedEndDate) : null,
+        actualStartDate: actualStartDate ? new Date(actualStartDate) : null,
         plannedEstimatedHours: plannedEstimatedHours === '' ? null : Number(plannedEstimatedHours),
         color: 'blue',
         cardLevel,
@@ -189,9 +193,9 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Title <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Title</label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-              className={base} placeholder="Enter task title" required autoFocus />
+              className={base} placeholder="Enter task title" autoFocus />
           </div>
 
           {/* Description */}
@@ -209,7 +213,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
           {/* Assignee | Reporter */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Assignee <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Assignee</label>
               <div className="relative">
                 <div className="relative flex items-center">
                   {assignee && (
@@ -218,15 +222,14 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
                     </div>
                   )}
                   <input
-                    type="email"
+                    type="text"
                     value={assignee}
                     onChange={(e) => {
                       setAssignee(e.target.value)
                       setAssigneeQuery(e.target.value)
                     }}
                     className={base + (assignee ? ' pl-11' : '')}
-                    placeholder="กรอกอีเมลผู้รับผิดชอบ"
-                    required
+                    placeholder="ค้นหาหรือระบุชื่อผู้รับผิดชอบ"
                   />
                 </div>
                 {isAssigneeLoading && (
@@ -270,7 +273,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
           <div className="grid grid-cols-2 gap-4">
             {/* State toggle */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">State <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">State</label>
               <div className="flex rounded-lg border border-gray-300 overflow-hidden text-xs font-medium">
                 {STATES.map((s) => (
                   <button key={s.value} type="button" onClick={() => setStatus(s.value as any)}
@@ -282,7 +285,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
             </div>
             {/* Priority Level */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority</label>
               <div className="relative">
                 <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
                   <PBadge v={priorityLevel} />
@@ -301,7 +304,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
           {/* Priority (impact level) | Impact */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority</label>
               <div className="relative">
                 <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
                   <PBadge v={priorityLevel} />
@@ -316,7 +319,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Impact <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Impact</label>
               <div className="relative">
                 <select value={impact} onChange={(e) => setImpact(e.target.value as ImpactLevel)} className={sel}>
                   <option value="high">High</option>
@@ -328,11 +331,22 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
             </div>
           </div>
 
-          {/* Planned End Date | Estimated Hours */}
+          {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Planned End Date <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Planned Start Date</label>
+              <input type="date" value={plannedStartDate} onChange={(e) => setPlannedStartDate(e.target.value)} className={base} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Planned End Date</label>
               <input type="date" value={plannedEndDate} onChange={(e) => setPlannedEndDate(e.target.value)} className={base} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Actual Start Date</label>
+              <input type="date" value={actualStartDate} onChange={(e) => setActualStartDate(e.target.value)} className={base} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Planned Estimated Hours</label>
@@ -347,7 +361,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
           {/* Card Level | Sprint */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Card Level <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Card Level</label>
               <div className="relative">
                 <select value={cardLevel} onChange={(e) => setCardLevel(e.target.value as CardLevel)} className={sel}>
                   <option value="task">Task</option>

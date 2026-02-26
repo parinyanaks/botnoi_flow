@@ -135,8 +135,6 @@ export default function Home() {
   // Create modal state
   const [projectName, setProjectName] = useState('')
   const [projectPrefix, setProjectPrefix] = useState('')
-  const [projectOrder, setProjectOrder] = useState('')
-  const [projectDate, setProjectDate] = useState('')
   const [projectDescription, setProjectDescription] = useState('')
   const [projectAssignee, setProjectAssignee] = useState('')
   const [projectError, setProjectError] = useState('')
@@ -248,8 +246,8 @@ export default function Home() {
 
   // ── Create project ──
   const resetCreateForm = () => {
-    setProjectName(''); setProjectPrefix(''); setProjectOrder('')
-    setProjectDate(''); setProjectDescription(''); setProjectAssignee(''); setProjectAssigneeOptions([]); setProjectAssigneeQuery('')
+    setProjectName(''); setProjectPrefix('');
+    setProjectDescription(''); setProjectAssignee(''); setProjectAssigneeOptions([]); setProjectAssigneeQuery('')
     setProjectError('')
   }
 
@@ -266,15 +264,10 @@ export default function Home() {
     }
     try {
       setIsCreatingProject(true)
-      const descParts = []
-      if (projectOrder.trim()) descParts.push(`Order: ${projectOrder.trim()}`)
-      if (projectDate.trim()) descParts.push(`Date: ${projectDate.trim()}`)
-      if (projectDescription.trim()) descParts.push(projectDescription.trim())
-      const description = descParts.join(' | ') || undefined
       await projectService.createProject({
         name: projectName.trim(),
         prefix: projectPrefix.trim(),
-        description,
+        description: projectDescription.trim() || undefined,
         assignee: projectAssignee.trim() || undefined,
         color: 'blue',
       })
@@ -825,7 +818,7 @@ export default function Home() {
                     <div className="space-y-5">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Project Name *</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Project Name</label>
                           <input
                             type="text" value={editName}
                             onChange={(e) => setEditName(e.target.value)}
@@ -834,7 +827,7 @@ export default function Home() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Prefix *</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1.5">Prefix</label>
                           <input
                             type="text" value={editPrefix}
                             onChange={(e) => setEditPrefix(e.target.value.toUpperCase())}
@@ -856,13 +849,13 @@ export default function Home() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Assignee</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Owner</label>
                         <input
                           type="text"
                           value={editAssignee}
                           onChange={(e) => setEditAssignee(e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                          placeholder="ชื่อผู้รับผิดชอบหลักของโปรเจกต์"
+                          placeholder="ชื่อเจ้าของโปรเจกต์"
                         />
                       </div>
 
@@ -942,7 +935,7 @@ export default function Home() {
             <div className="px-6 py-5 space-y-4">
               {/* Title */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Title *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Title</label>
                 <input
                   type="text"
                   value={projectName}
@@ -953,43 +946,21 @@ export default function Home() {
                 />
               </div>
 
-              {/* Task Title | Order | Date */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Task Title *</label>
-                  <input
-                    type="text"
-                    value={projectPrefix}
-                    onChange={(e) => setProjectPrefix(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
-                    placeholder="BNC / BNF"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Order #</label>
-                  <input
-                    type="text"
-                    value={projectOrder}
-                    onChange={(e) => setProjectOrder(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    placeholder="Enter order"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Date</label>
-                  <input
-                    type="text"
-                    value={projectDate}
-                    onChange={(e) => setProjectDate(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    placeholder="DDMMYY"
-                  />
-                </div>
+              {/* Task Title */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Task Title</label>
+                <input
+                  type="text"
+                  value={projectPrefix}
+                  onChange={(e) => setProjectPrefix(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
+                  placeholder="BNC / BNF"
+                />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
                 <textarea
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
@@ -999,19 +970,19 @@ export default function Home() {
                 />
               </div>
 
-              {/* Assignee */}
+              {/* Owner */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Assignee *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Owner</label>
                 <div className="relative">
                   <input
-                    type="email"
+                    type="text"
                     value={projectAssignee}
                     onChange={(e) => {
                       setProjectAssignee(e.target.value)
                       setProjectAssigneeQuery(e.target.value)
                     }}
                     className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    placeholder="กรอกอีเมลผู้รับผิดชอบ"
+                    placeholder="ค้นหาหรือระบุชื่อเจ้าของโปรเจกต์"
                   />
                   {isProjectAssigneeLoading && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">

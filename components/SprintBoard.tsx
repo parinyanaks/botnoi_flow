@@ -264,7 +264,7 @@ function CreateSprintModal({ num, onClose, onCreate }: {
         </div>
         <div className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            {[['Sprint Name *', 'name', 'text'], ['Sprint Goal', 'goal', 'text']].map(([label, key]) => (
+            {[['Sprint Name', 'name', 'text'], ['Sprint Goal', 'goal', 'text']].map(([label, key]) => (
               <div key={key}>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">{label}</label>
                 <input value={(form as any)[key]} onChange={f(key)}
@@ -273,7 +273,7 @@ function CreateSprintModal({ num, onClose, onCreate }: {
             ))}
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {[['Start Date *', 'startDate'], ['End Date *', 'endDate']].map(([label, key]) => (
+            {[['Start Date', 'startDate'], ['End Date', 'endDate']].map(([label, key]) => (
               <div key={key}>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">{label}</label>
                 <input type="date" value={(form as any)[key]} onChange={f(key)}
@@ -283,7 +283,7 @@ function CreateSprintModal({ num, onClose, onCreate }: {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Sprint Duration *</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Sprint Duration</label>
               <select value={form.duration} onChange={f('duration')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                 {['1 week','2 weeks','10 days','3 weeks','4 weeks'].map(d => <option key={d}>{d}</option>)}

@@ -305,39 +305,27 @@ export const projectService = {
 
 export const assigneeService = {
   searchAssignees: async (query: string): Promise<string[]> => {
-    const pattern = `%${query}%`
+    // ใช้ query% เพื่อให้ค้นหาเฉพาะชื่อที่ขึ้นต้นด้วยคำที่พิมพ์เท่านั้น
+    const pattern = `${query}%`
 
-    const [cardsRes, projectsRes] = await Promise.all([
-      supabase
-        .from('cards')
-        .select('assignee')
-        .ilike('assignee', pattern),
-      supabase
-        .from('projects')
-        .select('assignee')
-        .ilike('assignee', pattern),
-    ])
+    // ดึงเฉพาะ Full Name จากตาราง profiles เพียงอย่างเดียวเท่านั้น
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .ilike('full_name', pattern)
 
-    if (cardsRes.error) {
-      throw cardsRes.error
-    }
-    if (projectsRes.error) {
-      throw projectsRes.error
+    if (error || !data) {
+      return []
     }
 
-    const emails: string[] = []
-    for (const row of cardsRes.data ?? []) {
-      if (row.assignee && typeof row.assignee === 'string') {
-        emails.push(row.assignee)
-      }
-    }
-    for (const row of projectsRes.data ?? []) {
-      if (row.assignee && typeof row.assignee === 'string') {
-        emails.push(row.assignee)
+    const names: string[] = []
+    for (const row of data) {
+      if (row.full_name && !row.full_name.includes('@')) {
+        names.push(row.full_name)
       }
     }
 
-    return Array.from(new Set(emails)).sort()
+    return Array.from(new Set(names)).sort()
   },
 }
 
