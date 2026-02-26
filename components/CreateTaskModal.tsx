@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, ChevronDown } from 'lucide-react'
 import { taskService, projectService, Project, assigneeService } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
@@ -47,6 +47,8 @@ const STATES = [
 export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, currentProjectId }: CreateTaskModalProps) {
   const { user } = useAuth()
   const isGuest = user?.role === 'guest'
+  const teamDependencyDropdownRef = useRef<HTMLDivElement>(null)
+  const [isTeamDependencyOpen, setIsTeamDependencyOpen] = useState(false)
 
   const [title, setTitle]                 = useState('')
   const [description, setDescription]     = useState('')
@@ -62,6 +64,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
   const [cardLevel, setCardLevel]         = useState<CardLevel>('task')
   const [projects, setProjects]           = useState<Project[]>([])
   const [projectId, setProjectId]         = useState<number | null>(null)
+  const [teamDependencyIds, setTeamDependencyIds] = useState<number[]>([])
   const [isLoading, setIsLoading]         = useState(false)
   const [error, setError]                 = useState('')
   const [assigneeOptions, setAssigneeOptions] = useState<string[]>([])
@@ -71,6 +74,19 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
   const currentProject = currentProjectId !== null
     ? projects.find((p) => p.id === currentProjectId) ?? null
     : null
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (teamDependencyDropdownRef.current && !teamDependencyDropdownRef.current.contains(event.target as Node)) {
+        setIsTeamDependencyOpen(false)
+      }
+    }
+    if (isTeamDependencyOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isTeamDependencyOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -115,7 +131,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
     setTitle(''); setDescription(''); setAssignee(''); setReporter(user?.name || '')
     setStatus('todo'); setPriorityLevel('P1'); setImpact('high')
     setPlannedStartDate(''); setPlannedEndDate(''); setActualStartDate('')
-    setPlannedEstimatedHours('0'); setCardLevel('task')
+    setPlannedEstimatedHours('0'); setCardLevel('task'); setTeamDependencyIds([])
     setError('')
   }
 
@@ -140,6 +156,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
         type: cardLevel as any,
         points: 1,
         projectId,
+        teamDependencyIds: teamDependencyIds.length > 0 ? teamDependencyIds : null,
         reporter: reporter || user?.name || '',
         impact,
         urgency: 'medium',
@@ -148,7 +165,6 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
         plannedEndDate: plannedEndDate ? new Date(plannedEndDate) : null,
         actualStartDate: actualStartDate ? new Date(actualStartDate) : null,
         plannedEstimatedHours: plannedEstimatedHours === '' ? null : Number(plannedEstimatedHours),
-        color: 'blue',
         cardLevel,
         ownerId: user?.id || 0,
       })
@@ -156,7 +172,8 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
       onTaskCreated()
       onClose()
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create task')
+      console.error('Task creation error:', err)
+      setError(err?.message || err?.response?.data?.message || 'Failed to create task')
     } finally {
       setIsLoading(false)
     }
@@ -396,6 +413,59 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Team Dependency */}
+          <div ref={teamDependencyDropdownRef} className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Team Dependency
+              <span className="text-gray-400 font-normal text-xs ml-1">(Optional)</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setIsTeamDependencyOpen(!isTeamDependencyOpen)}
+              className={base + ' flex items-center justify-between text-left'}
+            >
+              <span className="text-gray-700">
+                {teamDependencyIds.length === 0
+                  ? 'Select projects...'
+                  : `${teamDependencyIds.length} project${teamDependencyIds.length > 1 ? 's' : ''} selected`}
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isTeamDependencyOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isTeamDependencyOpen && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg">
+                <div className="max-h-48 overflow-y-auto">
+                  {projects.filter(p => p.id !== projectId).length === 0 ? (
+                    <div className="px-3 py-2.5 text-sm text-gray-500">No other projects available</div>
+                  ) : (
+                    projects.filter(p => p.id !== projectId).map((project) => (
+                      <label
+                        key={project.id}
+                        className="flex items-center space-x-2 px-3 py-2.5 hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-50 last:border-b-0"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={teamDependencyIds.includes(project.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setTeamDependencyIds([...teamDependencyIds, project.id])
+                            } else {
+                              setTeamDependencyIds(teamDependencyIds.filter(id => id !== project.id))
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="text-sm text-gray-700">
+                          {project.prefix ? `${project.prefix} – ${project.name}` : project.name}
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
         </form>

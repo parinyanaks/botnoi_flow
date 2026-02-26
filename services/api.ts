@@ -4,7 +4,7 @@ import { User, AuthResponse, UserRole } from '@/types/auth'
 import { normalizeCardColor } from '@/lib/colors'
 
 export interface Project {
-  id: string
+  id: number
   name: string
   prefix?: string | null
   description?: string | null
@@ -16,7 +16,7 @@ export type SprintStatus = 'active' | 'completed' | 'planned'
 
 export interface SprintRecord {
   id: string
-  projectId: string
+  projectId: number
   name: string
   goal?: string | null
   startDate: string
@@ -70,6 +70,7 @@ const mapTaskRowToTask = (row: any): Task => {
     type: row.type,
     points: row.points,
     projectId: row.project_id ?? null,
+    teamDependencyIds: row.team_dependencies ?? null,
     reporter: row.reporter ?? undefined,
     impact: row.impact ?? undefined,
     urgency: row.urgency ?? undefined,
@@ -328,7 +329,7 @@ export const assigneeService = {
 }
 
 export const sprintService = {
-  getSprints: async (projectId: string): Promise<SprintRecord[]> => {
+  getSprints: async (projectId: number): Promise<SprintRecord[]> => {
     const { data, error } = await supabase
       .from('sprints')
       .select('*')
@@ -344,7 +345,7 @@ export const sprintService = {
 
   createSprint: async (input: {
     id: string
-    projectId: string
+    projectId: number
     name: string
     goal?: string
     startDate: string
@@ -489,6 +490,10 @@ export const taskService = {
       insertPayload.project_id = task.projectId
     }
 
+    if (task.teamDependencyIds !== undefined && task.teamDependencyIds !== null && task.teamDependencyIds.length > 0) {
+      insertPayload.team_dependencies= task.teamDependencyIds
+    }
+
     if (task.reporter !== undefined) {
       insertPayload.reporter = task.reporter
     }
@@ -557,6 +562,7 @@ export const taskService = {
     if (task.type !== undefined) updatePayload.type = task.type
     if (task.points !== undefined) updatePayload.points = task.points
     if (task.projectId !== undefined) updatePayload.project_id = task.projectId
+    if (task.teamDependencyIds !== undefined && task.teamDependencyIds !== null && task.teamDependencyIds.length > 0) updatePayload.team_dependencies = task.teamDependencyIds
     if (task.reporter !== undefined) updatePayload.reporter = task.reporter
     if (task.impact !== undefined) updatePayload.impact = task.impact
     if (task.urgency !== undefined) updatePayload.urgency = task.urgency

@@ -16,7 +16,8 @@ export interface Card {
   assignee: string
   type: CardType
   points: number
-  projectId?: string | null
+  projectId?: number | null
+  teamDependencyIds?: number[] | null
   reporter?: string
   impact?: ImpactLevel
   urgency?: UrgencyLevel
@@ -38,7 +39,7 @@ export interface Card {
 export type Task = Card
 
 export interface Project {
-  id: string
+  id: number
   name: string
   prefix?: string | null
   description?: string | null

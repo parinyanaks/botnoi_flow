@@ -22,7 +22,7 @@ export interface Sprint {
   label: string
   status: 'active' | 'completed' | 'planned'
   taskIds: string[]
-  projectId: string
+  projectId: number
   completedAt?: string
   taskSnapshots?: Array<{ id: string; title: string; status: string; priority: string; assignee?: string; points?: number }>
 }
@@ -34,12 +34,12 @@ let _dragTaskId: string | null = null
 let _dragTaskTitle: string | null = null
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
-const STORAGE_KEY = (pid: string) => `sprints_v2_project_${pid}`
+const STORAGE_KEY = (pid: number) => `sprints_v2_project_${pid}`
 
-function loadSprints(pid: string): Sprint[] {
+function loadSprints(pid: number): Sprint[] {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY(pid)) || '[]') } catch { return [] }
 }
-function saveSprints(pid: string, s: Sprint[]) {
+function saveSprints(pid: number, s: Sprint[]) {
   localStorage.setItem(STORAGE_KEY(pid), JSON.stringify(s))
   // Notify other components (e.g. BacklogView) that sprint data changed
   window.dispatchEvent(new CustomEvent('sprintsUpdated', { detail: { projectId: pid } }))
@@ -131,11 +131,11 @@ function useToast() {
 
 // ─── Sprint task card ─────────────────────────────────────────────────────────
 function SprintTaskCard({
-  task, onTaskClick, prefix, isDragging,
+  task, onTaskClick, isDragging,
 }: {
-  task: Task; onTaskClick: (t: Task) => void; prefix?: string; isDragging?: boolean
+  task: Task; onTaskClick: (t: Task) => void; isDragging?: boolean
 }) {
-  const tid = prefix ? `${prefix}-${task.id}` : `TASK-${task.id}`
+  const tid = task.id
   return (
     <div
       onClick={() => onTaskClick(task)}
@@ -221,7 +221,7 @@ function KanbanCol({
             }}
             onDragEnd={() => { _dragTaskId = null; _dragTaskTitle = null }}
           >
-            <SprintTaskCard task={task} onTaskClick={onTaskClick} prefix={prefix} />
+            <SprintTaskCard task={task} onTaskClick={onTaskClick} />
           </div>
         ))}
       </div>
@@ -312,8 +312,8 @@ function CreateSprintModal({ num, onClose, onCreate }: {
 }
 
 // ─── Add Tasks from Backlog Modal ─────────────────────────────────────────────
-function AddBacklogModal({ tasks, sprint, prefix, onClose, onAdd }: {
-  tasks: Task[]; sprint: Sprint; prefix?: string; onClose: () => void; onAdd: (ids: string[]) => void
+function AddBacklogModal({ tasks, sprint, onClose, onAdd }: {
+  tasks: Task[]; sprint: Sprint; onClose: () => void; onAdd: (ids: string[]) => void
 }) {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -364,7 +364,7 @@ function AddBacklogModal({ tasks, sprint, prefix, onClose, onAdd }: {
           )}
           {list.map(task => {
             const isSel = selected.has(task.id)
-            const tid = prefix ? `${prefix}-${task.id}` : `TASK-${task.id}`
+            const tid = task.id
             return (
               <div key={task.id} onClick={() => setSelected(p => { const n = new Set(p); if (n.has(task.id)) n.delete(task.id); else n.add(task.id); return n })}
                 className={`grid grid-cols-[32px_1fr_80px_130px] px-6 py-3 border-b border-gray-50 hover:bg-blue-50/40 cursor-pointer transition-colors ${isSel ? 'bg-blue-50' : ''}`}>
@@ -475,7 +475,7 @@ function DeleteSprintModal({ sprint, onClose, onConfirm }: {
 }
 
 // ─── Completed Sprint Detail View ─────────────────────────────────────────────
-function CompletedSprintDetail({ sprint, onBack, prefix }: { sprint: Sprint; onBack: () => void; prefix?: string }) {
+function CompletedSprintDetail({ sprint, onBack }: { sprint: Sprint; onBack: () => void }) {
   const snapshots = sprint.taskSnapshots ?? []
   const done = snapshots.filter(t => t.status === 'done')
   const notDone = snapshots.filter(t => t.status !== 'done')
@@ -542,7 +542,7 @@ function CompletedSprintDetail({ sprint, onBack, prefix }: { sprint: Sprint; onB
           </div>
           <div className="divide-y divide-gray-50">
             {snapshots.map(t => {
-              const tid = prefix ? `${prefix}-${t.id}` : `TASK-${t.id}`
+              const tid = t.id
               return (
                 <div key={t.id} className="grid grid-cols-[auto_1fr_80px_80px_80px] gap-3 items-center px-5 py-3 hover:bg-gray-50 transition-colors">
                   <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${t.status === 'done' ? 'border-green-500 bg-green-500' : 'border-gray-300'}`}>
@@ -603,8 +603,7 @@ function SprintSelector({ sprints, current, onChange }: {
 // ─── Main SprintBoard ─────────────────────────────────────────────────────────
 interface SprintBoardProps {
   tasks: Task[]
-  projectId: string
-  projectPrefix?: string
+  projectId: number
   onTaskClick: (task: Task) => void
   onTaskStatusChange: (taskId: string, newStatus: CardStatus) => void
   onCreateTask: () => void
@@ -614,7 +613,6 @@ interface SprintBoardProps {
 export default function SprintBoard({
   tasks,
   projectId,
-  projectPrefix,
   onTaskClick,
   onTaskStatusChange,
   onCreateTask,
@@ -897,7 +895,7 @@ export default function SprintBoard({
   if (viewingCompleted) {
     return (
       <>
-        <CompletedSprintDetail sprint={viewingCompleted} onBack={() => setViewingCompleted(null)} prefix={projectPrefix} />
+        <CompletedSprintDetail sprint={viewingCompleted} onBack={() => setViewingCompleted(null)} />
         <ToastContainer toasts={toasts} remove={remove} />
       </>
     )
@@ -1081,11 +1079,11 @@ export default function SprintBoard({
               <div className="grid grid-cols-3 gap-3 min-h-[400px]">
                 <KanbanCol title="To Do" colorDot="bg-gray-400" tasks={todoTasks}
                   onTaskClick={onTaskClick} onMove={handleMove}
-                  onAddTask={() => setShowAddBacklog(true)} prefix={projectPrefix} toast={toast} />
+                  onAddTask={() => setShowAddBacklog(true)} toast={toast} />
                 <KanbanCol title="In Progress" colorDot="bg-yellow-400" tasks={inProgressTasks}
-                  onTaskClick={onTaskClick} onMove={handleMove} prefix={projectPrefix} toast={toast} />
+                  onTaskClick={onTaskClick} onMove={handleMove} toast={toast} />
                 <KanbanCol title="Done" colorDot="bg-green-500" tasks={doneTasks}
-                  onTaskClick={onTaskClick} onMove={handleMove} prefix={projectPrefix} toast={toast} />
+                  onTaskClick={onTaskClick} onMove={handleMove} toast={toast} />
               </div>
             )}
 
@@ -1215,7 +1213,7 @@ export default function SprintBoard({
       {/* Modals */}
       {showCreate && <CreateSprintModal num={sprints.length + 1} onClose={() => setShowCreate(false)} onCreate={handleCreate} />}
       {showAddBacklog && currentView && (
-        <AddBacklogModal tasks={backlogTasks} sprint={currentView} prefix={projectPrefix} onClose={() => setShowAddBacklog(false)} onAdd={handleAddTasks} />
+        <AddBacklogModal tasks={backlogTasks} sprint={currentView} onClose={() => setShowAddBacklog(false)} onAdd={handleAddTasks} />
       )}
       {showCompleteModal && currentView && (
         <CompleteSprintModal sprint={currentView} tasks={tasks} onClose={() => setShowCompleteModal(false)} onConfirm={handleCompleteSprint} />

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Task, CardColor } from '@/types/card'
-import { X, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Task, CardColor, Project } from '@/types/card'
+import { X, AlertCircle, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { taskService } from '@/services/api'
 import { getAllColors, CARD_COLORS } from '@/lib/colors'
@@ -12,6 +12,8 @@ interface TaskModalProps {
   onClose: () => void
   onUpdate: (task: Task) => void
   onDelete?: (taskId: string) => void
+  projects?: Project[]
+  selectedProjectId?: number | null
 }
 
 const getTypeIcon = (type: string) => {
@@ -24,12 +26,27 @@ const getTypeIcon = (type: string) => {
   }
 }
 
-export default function TaskModal({ task, onClose, onUpdate, onDelete }: TaskModalProps) {
+export default function TaskModal({ task, onClose, onUpdate, onDelete, projects = [], selectedProjectId }: TaskModalProps) {
   const { user } = useAuth()
   const [editedTask, setEditedTask] = useState<Task | null>(null)
   const [error, setError] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const teamDependencyDropdownRef = useRef<HTMLDivElement>(null)
+  const [isTeamDependencyOpen, setIsTeamDependencyOpen] = useState(false)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (teamDependencyDropdownRef.current && !teamDependencyDropdownRef.current.contains(event.target as Node)) {
+        setIsTeamDependencyOpen(false)
+      }
+    }
+    if (isTeamDependencyOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isTeamDependencyOpen])
 
   useEffect(() => {
     if (task) {
@@ -349,6 +366,41 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete }: TaskMod
               disabled={!canEdit}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">
+              Team Dependency
+              <span className="text-gray-400 font-normal text-xs ml-1">(which projects should display this task)</span>
+            </h3>
+            <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto bg-white">
+              {projects.filter(p => p.id !== selectedProjectId && p.id !== task?.projectId).length === 0 ? (
+                <p className="text-sm text-gray-500 py-2">No other projects available</p>
+              ) : (
+                <div className="space-y-2">
+                  {projects.filter(p => p.id !== selectedProjectId && p.id !== task?.projectId).map((project) => (
+                    <label key={project.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={(editedTask.teamDependencyIds || []).includes(project.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            handleChange('teamDependencyIds', [...(editedTask.teamDependencyIds || []), project.id])
+                          } else {
+                            handleChange('teamDependencyIds', (editedTask.teamDependencyIds || []).filter(id => id !== project.id))
+                          }
+                        }}
+                        disabled={!canEdit}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {project.prefix ? `${project.prefix} – ${project.name}` : project.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
         

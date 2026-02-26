@@ -70,8 +70,7 @@ function AssigneeAvatar({ name }: { name?: string }) {
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface BacklogViewProps {
   tasks: Task[]
-  projectId: string
-  projectPrefix?: string
+  projectId: number
   onCreateTask: () => void
   onTaskClick: (task: Task) => void
   onDeleteTask: (taskId: string) => void
@@ -401,11 +400,7 @@ export default function BacklogView({
           ) : (
             filtered.map((task, idx) => {
               const isSelected = selected.has(task.id)
-              const taskId = task.prefix
-                ? `${task.prefix}-${task.id}`
-                : projectPrefix
-                  ? `${projectPrefix}-${task.id}`
-                  : `TASK-${task.id}`
+              const taskId = task.id
               const estimateHours = (task as any).plannedEstimatedHours
                 ? `${(task as any).plannedEstimatedHours}h`
                 : task.points

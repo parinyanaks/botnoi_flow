@@ -60,7 +60,7 @@ export default function TaskCard({ task, onClick, draggableEnabled, onDragStart 
       className={`rounded-lg p-4 mb-3 transition-all duration-200 hover:shadow-md border-2 select-none active:opacity-75 ${isDragging ? 'opacity-50' : ''} ${draggableEnabled ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} ${getCardColor(task.color).bg} ${getCardColor(task.color).border}`}
     >
       <div className="flex items-start justify-between mb-2">
-        <span className="text-xs font-medium text-gray-500">TASK-{task.id}</span>
+        <span className="text-xs font-medium text-gray-500">{task.id}</span>
         <span className={`px-2 py-0.5 rounded text-xs font-medium ${getPriorityColor(task.priority)}`}>
           {task.priority.toUpperCase()}
         </span>

@@ -130,7 +130,7 @@ export default function Home() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
 
   // Create modal state
   const [projectName, setProjectName] = useState('')
@@ -165,7 +165,7 @@ export default function Home() {
   useEffect(() => {
     const param = searchParams.get('projectId')
     if (param) {
-      setSelectedProjectId(param)
+      setSelectedProjectId(Number(param))
       return
     }
     setSelectedProjectId(null)
@@ -240,7 +240,11 @@ export default function Home() {
 
   const filteredTasks = tasks.filter(task => {
     if (filter !== 'all' && task.priority !== filter) return false
-    if (selectedProjectId !== null && task.projectId !== selectedProjectId) return false
+    if (selectedProjectId !== null) {
+      const belongsToProject = task.projectId === selectedProjectId
+      const isInTeamDependency = task.teamDependencyIds?.includes(selectedProjectId) ?? false
+      if (!belongsToProject && !isInTeamDependency) return false
+    }
     return true
   })
 
@@ -370,8 +374,11 @@ export default function Home() {
   }
 
   // ── Stats ──
-  const getProjectStats = (projectId: string) => {
-    const pt = tasks.filter(t => t.projectId === projectId)
+  const getProjectStats = (projectId: number) => {
+    const pt = tasks.filter(t => 
+      t.projectId === projectId || 
+      (t.teamDependencyIds?.includes(projectId) ?? false)
+    )
     const total = pt.length
     const done = pt.filter(t => t.status === 'done').length
     const inProgress = pt.filter(t => t.status === 'inprogress').length
@@ -770,7 +777,6 @@ export default function Home() {
                 <SprintBoard
                   tasks={tasks}
                   projectId={selectedProjectId!}
-                  projectPrefix={selectedProject?.prefix}
                   onTaskClick={handleTaskClick}
                 onTaskStatusChange={handleTaskStatusChange}
                 onCreateTask={() => {
@@ -788,7 +794,6 @@ export default function Home() {
                 <BacklogView
                   tasks={tasks}
                   projectId={selectedProjectId!}
-                  projectPrefix={selectedProject?.prefix}
                   onCreateTask={() => {
                     if (isGuest) {
                       showToast('Guest ดูอย่างเดียว สร้าง Task ไม่ได้', 'error')
@@ -899,7 +904,7 @@ export default function Home() {
       </div>
 
       {/* Modals */}
-      <TaskModal task={selectedTask} onClose={handleCloseModal} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} />
+      <TaskModal task={selectedTask} onClose={handleCloseModal} onUpdate={handleUpdateTask} onDelete={handleDeleteTask} projects={projects} selectedProjectId={selectedProjectId} />
 
       <CreateTaskModal
         isOpen={isCreateModalOpen}

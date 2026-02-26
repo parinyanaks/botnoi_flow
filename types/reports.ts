@@ -1,5 +1,5 @@
 export interface ProjectProgress {
-  projectId: string
+  projectId: number
   projectName: string
   totalTasks: number
   completedTasks: number
