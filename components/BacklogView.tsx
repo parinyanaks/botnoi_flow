@@ -105,7 +105,11 @@ export default function BacklogView({
   // Filter tasks
   const filtered = useMemo(() => {
     return tasks
-      .filter(t => t.projectId === projectId)
+      .filter(t => {
+        const belongsToProject = t.projectId === projectId
+        const isInDependency = Array.isArray(t.teamDependencyIds) && t.teamDependencyIds.includes(projectId)
+        return belongsToProject || isInDependency
+      })
       .filter(t => {
         const q = search.toLowerCase()
         if (q && !t.title?.toLowerCase().includes(q)) return false

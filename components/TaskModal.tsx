@@ -64,6 +64,11 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete, projects 
       setError('You can only edit your own tasks')
       return
     }
+    console.log('[TaskModal] Submitting task update:', {
+      id: editedTask.id,
+      title: editedTask.title,
+      teamDependencyIds: editedTask.teamDependencyIds,
+    })
     onUpdate(editedTask)
   }
 
@@ -374,11 +379,11 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete, projects 
               <span className="text-gray-400 font-normal text-xs ml-1">(which projects should display this task)</span>
             </h3>
             <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto bg-white">
-              {projects.filter(p => p.id !== selectedProjectId && p.id !== task?.projectId).length === 0 ? (
+              {projects.filter(p => p.id !== task?.projectId).length === 0 ? (
                 <p className="text-sm text-gray-500 py-2">No other projects available</p>
               ) : (
                 <div className="space-y-2">
-                  {projects.filter(p => p.id !== selectedProjectId && p.id !== task?.projectId).map((project) => (
+                  {projects.filter(p => p.id !== task?.projectId).map((project) => (
                     <label key={project.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors">
                       <input
                         type="checkbox"

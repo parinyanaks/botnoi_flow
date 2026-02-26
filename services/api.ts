@@ -60,6 +60,31 @@ const mapSprintRowToRecord = (row: any): SprintRecord => {
 }
 
 const mapTaskRowToTask = (row: any): Task => {
+  // Parse team_dependencies if it's a JSON string or text array
+  let teamDependencyIds: number[] | null = null
+  if (row.team_dependencies) {
+    if (typeof row.team_dependencies === 'string') {
+      // Try to parse if it's a JSON string like '["1","3","4"]'
+      try {
+        const parsed = JSON.parse(row.team_dependencies)
+        if (Array.isArray(parsed)) {
+          teamDependencyIds = parsed.map((id: any) => {
+            const num = parseInt(id, 10)
+            return isNaN(num) ? 0 : num
+          })
+        }
+      } catch {
+        teamDependencyIds = null
+      }
+    } else if (Array.isArray(row.team_dependencies)) {
+      // Already an array, convert all elements to numbers
+      teamDependencyIds = row.team_dependencies.map((id: any) => {
+        const num = parseInt(id, 10)
+        return isNaN(num) ? 0 : num
+      })
+    }
+  }
+
   return {
     id: row.id,
     title: row.title,
@@ -70,7 +95,7 @@ const mapTaskRowToTask = (row: any): Task => {
     type: row.type,
     points: row.points,
     projectId: row.project_id ?? null,
-    teamDependencyIds: row.team_dependencies ?? null,
+    teamDependencyIds: teamDependencyIds,
     reporter: row.reporter ?? undefined,
     impact: row.impact ?? undefined,
     urgency: row.urgency ?? undefined,
@@ -490,8 +515,8 @@ export const taskService = {
       insertPayload.project_id = task.projectId
     }
 
-    if (task.teamDependencyIds !== undefined && task.teamDependencyIds !== null && task.teamDependencyIds.length > 0) {
-      insertPayload.team_dependencies= task.teamDependencyIds
+    if (task.teamDependencyIds !== undefined) {
+      insertPayload.team_dependencies = task.teamDependencyIds ?? []
     }
 
     if (task.reporter !== undefined) {
@@ -562,7 +587,7 @@ export const taskService = {
     if (task.type !== undefined) updatePayload.type = task.type
     if (task.points !== undefined) updatePayload.points = task.points
     if (task.projectId !== undefined) updatePayload.project_id = task.projectId
-    if (task.teamDependencyIds !== undefined && task.teamDependencyIds !== null && task.teamDependencyIds.length > 0) updatePayload.team_dependencies = task.teamDependencyIds
+    if (task.teamDependencyIds !== undefined) updatePayload.team_dependencies = task.teamDependencyIds ?? []
     if (task.reporter !== undefined) updatePayload.reporter = task.reporter
     if (task.impact !== undefined) updatePayload.impact = task.impact
     if (task.urgency !== undefined) updatePayload.urgency = task.urgency
@@ -577,6 +602,8 @@ export const taskService = {
     if (task.sprintId !== undefined) updatePayload.sprint_id = task.sprintId
     if (task.ownerId !== undefined) updatePayload.owner_id = task.ownerId
 
+    console.log('[API] updateTask payload:', { taskId: id, updatePayload })
+
     const { data, error } = await supabase
       .from('cards')
       .update(updatePayload)
@@ -585,12 +612,19 @@ export const taskService = {
       .maybeSingle()
 
     if (error) {
+      console.error('[API] updateTask error:', error)
       throw error
     }
 
     if (!data) {
       throw new Error('Failed to update task')
     }
+
+    console.log('[API] updateTask response:', { 
+      taskId: id, 
+      teamDependencyIds: data.team_dependencies,
+      fullData: data 
+    })
 
     return mapTaskRowToTask(data)
   },

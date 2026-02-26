@@ -725,7 +725,11 @@ export default function SprintBoard({
   // Auto-add newly created tasks to the currently viewed sprint
   useEffect(() => {
     const prevIds = prevTaskIdsRef.current
-    const newTasks = tasks.filter(t => t.projectId === projectId && !prevIds.has(t.id))
+    const newTasks = tasks.filter(t => {
+      const belongsToProject = t.projectId === projectId
+      const isInDependency = Array.isArray(t.teamDependencyIds) && t.teamDependencyIds.includes(projectId)
+      return (belongsToProject || isInDependency) && !prevIds.has(t.id)
+    })
     prevTaskIdsRef.current = new Set(tasks.map(t => t.id))
     if (newTasks.length === 0) return
 
@@ -783,7 +787,11 @@ export default function SprintBoard({
   const activeSprintTaskIds = new Set(
     sprints.filter(s => s.status !== 'completed').flatMap(s => s.taskIds)
   )
-  const backlogTasks = tasks.filter(t => t.projectId === projectId && !activeSprintTaskIds.has(t.id))
+  const backlogTasks = tasks.filter(t => {
+    const belongsToProject = t.projectId === projectId
+    const isInDependency = Array.isArray(t.teamDependencyIds) && t.teamDependencyIds.includes(projectId)
+    return (belongsToProject || isInDependency) && !activeSprintTaskIds.has(t.id)
+  })
 
   // Sprint tasks
   const sprintTasks = currentView ? tasks.filter(t => currentView.taskIds.includes(t.id)) : []

@@ -211,9 +211,24 @@ export default function Home() {
   const handleCloseModal = () => setSelectedTask(null)
 
   const handleUpdateTask = async (updatedTask: Task) => {
-    try { await taskService.updateTask(updatedTask.id, updatedTask) } catch {}
-    setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t))
-    setSelectedTask(null)
+    try { 
+      console.log('[handleUpdateTask] Updating task:', {
+        id: updatedTask.id,
+        teamDependencyIds: updatedTask.teamDependencyIds,
+      })
+      const result = await taskService.updateTask(updatedTask.id, updatedTask)
+      console.log('[handleUpdateTask] Updated result:', {
+        id: result.id,
+        teamDependencyIds: result.teamDependencyIds,
+      })
+      // Use API response result instead of local updatedTask
+      setTasks(tasks.map(t => t.id === result.id ? result : t))
+      setSelectedTask(null)
+      showToast('Task updated successfully ✓')
+    } catch (err: any) {
+      console.error('[handleUpdateTask] Error:', err)
+      showToast('Failed to update task', 'error')
+    }
   }
 
   const handleDeleteTask = async (taskId: string) => {
