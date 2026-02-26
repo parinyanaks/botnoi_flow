@@ -77,13 +77,11 @@ const mapTaskRowToTask = (row: any): Task => {
     plannedStartDate: row.planned_start_date ? new Date(row.planned_start_date) : null,
     plannedEndDate: row.planned_end_date ? new Date(row.planned_end_date) : null,
     actualStartDate: row.actual_start_date ? new Date(row.actual_start_date) : null,
-    actualEndDate: row.actual_end_date ? new Date(row.actual_end_date) : null,
     plannedEstimatedHours: row.planned_estimated_hours ?? null,
     actualEstimatedHours: row.actual_estimated_hours ?? null,
     labels: row.labels ?? undefined,
     cardLevel: row.card_level ?? undefined,
     sprintId: row.sprint_id ?? null,
-    dependencies: row.dependencies ?? undefined,
     ownerId: row.ownerId ?? row.owner_id,
     color: normalizeCardColor(row.color),
     createdAt: row.created_at ? new Date(row.created_at) : undefined,
@@ -512,9 +510,6 @@ export const taskService = {
     if (task.actualStartDate !== undefined) {
       insertPayload.actual_start_date = task.actualStartDate
     }
-    if (task.actualEndDate !== undefined) {
-      insertPayload.actual_end_date = task.actualEndDate
-    }
     if (task.plannedEstimatedHours !== undefined) {
       insertPayload.planned_estimated_hours = task.plannedEstimatedHours
     }
@@ -530,10 +525,6 @@ export const taskService = {
     if (task.sprintId !== undefined) {
       insertPayload.sprint_id = task.sprintId
     }
-    if (task.dependencies !== undefined) {
-      insertPayload.dependencies = task.dependencies
-    }
-
     if (task.ownerId !== undefined) {
       insertPayload.owner_id = task.ownerId
     }
@@ -573,13 +564,11 @@ export const taskService = {
     if (task.plannedStartDate !== undefined) updatePayload.planned_start_date = task.plannedStartDate
     if (task.plannedEndDate !== undefined) updatePayload.planned_end_date = task.plannedEndDate
     if (task.actualStartDate !== undefined) updatePayload.actual_start_date = task.actualStartDate
-    if (task.actualEndDate !== undefined) updatePayload.actual_end_date = task.actualEndDate
     if (task.plannedEstimatedHours !== undefined) updatePayload.planned_estimated_hours = task.plannedEstimatedHours
     if (task.actualEstimatedHours !== undefined) updatePayload.actual_estimated_hours = task.actualEstimatedHours
     if (task.labels !== undefined) updatePayload.labels = task.labels
     if (task.cardLevel !== undefined) updatePayload.card_level = task.cardLevel
     if (task.sprintId !== undefined) updatePayload.sprint_id = task.sprintId
-    if (task.dependencies !== undefined) updatePayload.dependencies = task.dependencies
     if (task.ownerId !== undefined) updatePayload.owner_id = task.ownerId
 
     const { data, error } = await supabase

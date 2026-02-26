@@ -24,13 +24,11 @@ export interface Card {
   plannedStartDate?: Date | null
   plannedEndDate?: Date | null
   actualStartDate?: Date | null
-  actualEndDate?: Date | null
   plannedEstimatedHours?: number | null
   actualEstimatedHours?: number | null
   labels?: string[]
   cardLevel?: CardLevel
   sprintId?: number | null
-  dependencies?: number[]
   ownerId?: number
   color?: CardColor
   createdAt?: Date
