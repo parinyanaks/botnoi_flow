@@ -34,6 +34,7 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete, projects 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const teamDependencyDropdownRef = useRef<HTMLDivElement>(null)
   const [isTeamDependencyOpen, setIsTeamDependencyOpen] = useState(false)
+  const mouseDownTarget = useRef<EventTarget | null>(null)
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -103,7 +104,12 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete, projects 
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
-      onClick={onClose}
+      onMouseDown={(e) => { mouseDownTarget.current = e.target }}
+      onClick={(e) => {
+        if (mouseDownTarget.current === e.currentTarget) {
+          onClose()
+        }
+      }}
     >
       <div 
         className="bg-white rounded-lg w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto" 
@@ -158,35 +164,57 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete, projects 
           </div>
           
           <div className="grid grid-cols-2 gap-4">
+            {/* State toggle */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Status</h3>
-              <select 
-                value={editedTask.status}
-                onChange={(e) => handleChange('status', e.target.value)}
-                disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
-              >
-                <option value="backlog">Backlog</option>
-                <option value="todo">To Do</option>
-                <option value="inprogress">In Progress</option>
-                <option value="done">Done</option>
-              </select>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">State</h3>
+              <div className="flex rounded-lg border border-gray-300 overflow-hidden text-xs font-medium">
+                <button
+                  type="button"
+                  onClick={() => handleChange('status', 'todo')}
+                  disabled={!canEdit}
+                  className={`flex-1 py-2 transition-colors ${editedTask.status === 'todo' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  To Do
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleChange('status', 'inprogress')}
+                  disabled={!canEdit}
+                  className={`flex-1 py-2 transition-colors ${editedTask.status === 'inprogress' ? 'bg-yellow-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  In Progress
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleChange('status', 'done')}
+                  disabled={!canEdit}
+                  className={`flex-1 py-2 transition-colors ${editedTask.status === 'done' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Done
+                </button>
+              </div>
             </div>
             
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Priority</h3>
-              <select 
-                value={editedTask.priority}
-                onChange={(e) => handleChange('priority', e.target.value)}
-                disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Priority Level (P0–P3)</h3>
+              <div className="relative">
+                <select
+                  value={editedTask.priorityLevel || 'P2'}
+                  onChange={(e) => handleChange('priorityLevel', e.target.value)}
+                  disabled={!canEdit}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed appearance-none"
+                >
+                  <option value="P0">P0</option>
+                  <option value="P1">P1</option>
+                  <option value="P2">P2</option>
+                  <option value="P3">P3</option>
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
+          </div>
             
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Assignee</h3>
               <div className="flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-md">
@@ -204,19 +232,6 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete, projects 
             </div>
             
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Story Points</h3>
-              <input 
-                type="number" 
-                value={editedTask.points}
-                onChange={(e) => handleChange('points', parseInt(e.target.value))}
-                disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Reporter</h3>
               <input
                 type="text"
@@ -226,64 +241,26 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete, projects 
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Card Level</h3>
-              <select
-                value={editedTask.cardLevel || 'task'}
-                onChange={(e) => handleChange('cardLevel', e.target.value)}
-                disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
-              >
-                <option value="epic">Epic</option>
-                <option value="task">Task</option>
-                <option value="bug">Bug</option>
-                <option value="story">Story</option>
-                <option value="risk">Risk</option>
-                <option value="subtask">Subtask</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Impact</h3>
-              <select
-                value={editedTask.impact || 'medium'}
-                onChange={(e) => handleChange('impact', e.target.value)}
-                disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
-              >
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Urgency</h3>
-              <select
-                value={editedTask.urgency || 'medium'}
-                onChange={(e) => handleChange('urgency', e.target.value)}
-                disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
-              >
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Priority Level (P0–P3)</h3>
-              <select
-                value={editedTask.priorityLevel || 'P2'}
-                onChange={(e) => handleChange('priorityLevel', e.target.value)}
-                disabled={!canEdit}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
-              >
-                <option value="P0">P0</option>
-                <option value="P1">P1</option>
-                <option value="P2">P2</option>
-                <option value="P3">P3</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={editedTask.cardLevel || 'task'}
+                  onChange={(e) => handleChange('cardLevel', e.target.value)}
+                  disabled={!canEdit}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed appearance-none"
+                >
+                  <option value="epic">Epic</option>
+                  <option value="task">Task</option>
+                  <option value="bug">Bug</option>
+                  <option value="story">Story</option>
+                  <option value="risk">Risk</option>
+                  <option value="subtask">Subtask</option>
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
           </div>
 
@@ -322,6 +299,41 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete, projects 
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Actual Start Date</h3>
+                <input
+                  type="date"
+                  value={editedTask.actualStartDate ? editedTask.actualStartDate.toISOString().slice(0, 10) : ''}
+                  onChange={(e) =>
+                    handleChange(
+                      'actualStartDate',
+                      e.target.value ? new Date(e.target.value) : null
+                    )
+                  }
+                  disabled={!canEdit}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Actual End Date</h3>
+                <input
+                  type="date"
+                  value={editedTask.actualEndDate ? editedTask.actualEndDate.toISOString().slice(0, 10) : ''}
+                  onChange={(e) =>
+                    handleChange(
+                      'actualEndDate',
+                      e.target.value ? new Date(e.target.value) : null
+                    )
+                  }
+                  disabled={!canEdit}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Planned Hours</h3>
                 <input
                   type="number"
@@ -352,25 +364,16 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete, projects 
                 />
               </div>
             </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Labels</h3>
-            <input
-              type="text"
-              value={(editedTask.labels || []).join(', ')}
-              onChange={(e) =>
-                handleChange(
-                  'labels',
-                  e.target.value
-                    .split(',')
-                    .map((v) => v.trim())
-                    .filter((v) => v.length > 0)
-                )
-              }
-              disabled={!canEdit}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
-            />
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Story Points</h3>
+              <input 
+                type="number" 
+                value={editedTask.points}
+                onChange={(e) => handleChange('points', parseInt(e.target.value))}
+                disabled={!canEdit}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+              />
+            </div>
           </div>
 
           <div>
@@ -409,32 +412,7 @@ export default function TaskModal({ task, onClose, onUpdate, onDelete, projects 
           </div>
         </div>
         
-        <div className="p-6 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Card Color</h3>
-          <div className="grid grid-cols-4 gap-2 mb-6">
-            {getAllColors().map((color) => (
-              <button
-                key={color}
-                type="button"
-                onClick={() => handleChange('color', color)}
-                disabled={!canEdit}
-                className={`relative p-3 rounded-lg border-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                  editedTask.color === color
-                    ? `${CARD_COLORS[color].border} ring-2 ring-offset-2 ring-blue-500`
-                    : `${CARD_COLORS[color].border}`
-                } ${CARD_COLORS[color].bg}`}
-              >
-                <div className={`w-3 h-3 rounded-full mx-auto ${CARD_COLORS[color].dot}`} />
-                <span className="text-xs text-gray-700 mt-1 block">{CARD_COLORS[color].label}</span>
-                {editedTask.color === color && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-lg">✓</span>
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+
         
         <div className="p-6 border-t border-gray-200 flex justify-between">
           <button 

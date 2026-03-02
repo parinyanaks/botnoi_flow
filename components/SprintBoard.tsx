@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Task, CardStatus } from '@/types/card'
-import { sprintService } from '@/services/api'
+import { sprintService, taskService } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
 import {
   Plus, CheckCircle2, MoreHorizontal, Search, Calendar, Users,
@@ -255,9 +255,19 @@ function CreateSprintModal({ num, onClose, onCreate }: {
   const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }))
 
+  const mouseDownTarget = useRef<EventTarget | null>(null)
+
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-lg mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+      onMouseDown={(e) => { mouseDownTarget.current = e.target }}
+      onClick={(e) => {
+        if (mouseDownTarget.current === e.currentTarget) {
+          onClose()
+        }
+      }}
+    >
+      <div className="bg-white rounded-2xl w-full max-w-3xl mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-900">Create Sprint</h2>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 text-xl">×</button>
@@ -398,12 +408,34 @@ function AddBacklogModal({ tasks, sprint, onClose, onAdd }: {
 }
 
 // ─── Complete Sprint Confirm Modal ─────────────────────────────────────────────
-function CompleteSprintModal({ sprint, tasks, onClose, onConfirm }: {
-  sprint: Sprint; tasks: Task[]; onClose: () => void; onConfirm: () => void
+function CompleteSprintModal({ sprint, tasks, sprints, onClose, onConfirm }: {
+  sprint: Sprint; tasks: Task[]; sprints: Sprint[]; onClose: () => void; onConfirm: (action: 'backlog' | 'next_sprint', nextSprintId?: string) => void
 }) {
   const sprintTasks = tasks.filter(t => sprint.taskIds.includes(t.id))
   const done = sprintTasks.filter(t => t.status === 'done')
   const notDone = sprintTasks.filter(t => t.status !== 'done')
+  
+  const [action, setAction] = useState<'backlog' | 'next_sprint'>('backlog')
+  // This filter runs on every render, so it always has the latest sprints
+  const plannedSprints = sprints.filter(s => s.status === 'planned' && s.id !== sprint.id)
+  const [nextSprintId, setNextSprintId] = useState<string>('')
+
+  useEffect(() => {
+    // If plannedSprints change (e.g. user created a new sprint),
+    // ensure nextSprintId is valid. If not set or invalid, default to first available.
+    if (plannedSprints.length > 0) {
+      // If we don't have a valid selection yet, pick the first one
+      const currentValid = plannedSprints.some(s => s.id === nextSprintId)
+      if (!nextSprintId || !currentValid) {
+        setNextSprintId(plannedSprints[0].id)
+      }
+    } else {
+      // No planned sprints available
+      if (nextSprintId) setNextSprintId('')
+      if (action === 'next_sprint') setAction('backlog')
+    }
+  }, [plannedSprints, nextSprintId, action])
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -413,7 +445,7 @@ function CompleteSprintModal({ sprint, tasks, onClose, onConfirm }: {
           </h2>
           <p className="text-sm text-gray-500 mt-1">สรุปผลก่อน Complete Sprint</p>
         </div>
-        <div className="px-6 py-5 space-y-3">
+        <div className="px-6 py-5 space-y-4">
           <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100">
             <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
             <div>
@@ -421,19 +453,64 @@ function CompleteSprintModal({ sprint, tasks, onClose, onConfirm }: {
               <div className="text-xs text-green-600 mt-0.5">{done.slice(0,3).map(t=>t.title).join(', ')}{done.length > 3 ? ` +${done.length-3} more` : ''}</div>
             </div>
           </div>
+          
           {notDone.length > 0 && (
-            <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-xl border border-yellow-100">
-              <Clock className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-              <div>
-                <div className="text-sm font-semibold text-yellow-800">Incomplete: {notDone.length} tasks</div>
-                <div className="text-xs text-yellow-600 mt-0.5">Tasks เหล่านี้จะกลับไปที่ Backlog</div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-xl border border-yellow-100">
+                <Clock className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                <div>
+                  <div className="text-sm font-semibold text-yellow-800">Incomplete: {notDone.length} tasks</div>
+                  <div className="text-xs text-yellow-600 mt-0.5">เลือกดำเนินการกับ Tasks ที่ยังไม่เสร็จ</div>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="incompleteAction" 
+                    checked={action === 'backlog'} 
+                    onChange={() => setAction('backlog')}
+                    className="text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">ย้ายไปที่ Backlog</span>
+                </label>
+                
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="incompleteAction" 
+                    checked={action === 'next_sprint'} 
+                    onChange={() => setAction('next_sprint')}
+                    disabled={plannedSprints.length === 0}
+                    className="text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                  />
+                  <span className={`text-sm ${plannedSprints.length === 0 ? 'text-gray-400' : 'text-gray-700'}`}>
+                    ย้ายไป Sprint ถัดไป {plannedSprints.length === 0 && '(ไม่มี Sprint ถัดไป)'}
+                  </span>
+                </label>
+                
+                {action === 'next_sprint' && plannedSprints.length > 0 && (
+                  <select 
+                    value={nextSprintId}
+                    onChange={(e) => setNextSprintId(e.target.value)}
+                    className="ml-6 mt-1 block w-[calc(100%-1.5rem)] rounded-md border-gray-300 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm bg-white border px-2"
+                  >
+                    {plannedSprints.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           )}
         </div>
         <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-          <button onClick={onConfirm} className="px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 shadow-sm">
+          <button 
+            onClick={() => onConfirm(action, nextSprintId)} 
+            className="px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 shadow-sm"
+          >
             ✓ Complete Sprint
           </button>
         </div>
@@ -673,29 +750,115 @@ export default function SprintBoard({
         }))
         const latestLocal = loadSprints(projectId)
         const byId = new Map(latestLocal.map(s => [s.id, s]))
+        const byName = new Map(latestLocal.map(s => [s.name, s])) // Fallback match by name
+        
+        // Track which local sprints have been "merged" into remote ones
+        const mergedLocalIds = new Set<string>()
+
         let merged: Sprint[] = mappedRemote.map(base => {
-          const localSprint = byId.get(base.id)
+          // 1. Try exact ID match
+          let localSprint = byId.get(base.id)
+          
+          // 2. If no ID match, try Name match (if local is temp ID)
+          if (!localSprint) {
+             const potentialMatch = byName.get(base.name)
+             // Only merge if the name matches AND the local one has a temp ID (starts with sprint_)
+             // This prevents merging "Sprint 1" (ID: 1) with "Sprint 1" (ID: 2) if both are from DB?
+             // But here we assume local might have temp ID.
+             if (potentialMatch && potentialMatch.id.startsWith('sprint_')) {
+                 localSprint = potentialMatch
+             }
+          }
+
           if (!localSprint) return base
+
+          mergedLocalIds.add(localSprint.id)
+
           return {
             ...base,
             taskIds: localSprint.taskIds ?? [],
             taskSnapshots: localSprint.taskSnapshots,
           }
         })
+
+        // Add local sprints that were NOT merged (and are not duplicates by name either?)
+        // If we have a local sprint "Sprint X" that wasn't matched to any remote sprint, we keep it.
+        // But if we already have a remote "Sprint X", we should have matched it above?
+        // Yes, if names are identical, it would be matched by `byName` logic above.
+        // So `merged` already contains it (with remote ID).
+        // So we only add local sprints that truly don't exist in remote.
+
         for (const s of latestLocal) {
-          if (!merged.some(m => m.id === s.id)) merged.push(s)
+          if (!mergedLocalIds.has(s.id)) {
+            // Double check if this local sprint is already represented in merged by ID (unlikely if not in set)
+            // or by Name (if we missed it somehow).
+            // But logic above iterates ALL remote sprints.
+            // So if a remote sprint existed with same name, we would have used it.
+            // So this `s` is truly new/local-only.
+            // EXCEPT: What if remote has "Sprint 4" (Active) and local has "Sprint 4" (Done)?
+            // If names match, we used the local data into the remote shell?
+            // Wait, if remote is "Sprint 4" and local is "Sprint 4", we merged them.
+            // But `base` properties (status) come from REMOTE.
+            // So if remote is Active, merged result is Active.
+            // Local might be Done. We lose the "Done" status from local?
+            // Yes, Remote is truth for status.
+            
+            // However, what if we have multiple local sprints with same name? `byName` map only keeps one.
+            // That's an edge case we accept for now.
+            
+            // Check if ID is already in merged (e.g. if local ID was same as remote ID)
+            if (!merged.some(m => m.id === s.id)) {
+               // Only preserve local sprints that have a temporary ID (starts with 'sprint_')
+               // This assumes they are newly created and not yet synced to Supabase.
+               // Sprints with other IDs (UUIDs) that are missing from remote are considered DELETED.
+               if (s.id.startsWith('sprint_')) {
+                 merged.push(s)
+               }
+            }
+          }
         }
+        
+        // Sort sprints by startDate then name (natural sort)
+         merged.sort((a, b) => {
+           // 1. By Start Date
+           const dateA = new Date(a.startDate).getTime()
+           const dateB = new Date(b.startDate).getTime()
+           if (dateA !== dateB) return dateA - dateB
+           
+           // 2. By Name (natural sort: Sprint 2 < Sprint 10)
+           return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+         })
+         
+         // Save the deduplicated/merged list back to localStorage to fix the IDs
+         saveSprints(projectId, merged)
 
         if (cancelled) return
 
         sprintsRef.current = merged
         setSprints(merged)
-        const first =
-          merged.find(s => s.status === 'active') ??
-          merged.find(s => s.status === 'planned') ??
-          null
-        viewingSprintRef.current = first
-        setViewingSprint(first)
+        
+        // Restore view if possible
+        const currentViewId = viewingSprintRef.current?.id
+        // If current view was a temp ID that got merged into a remote ID, we need to find it by name?
+        // Or just pick a default.
+        
+        // Try to find the currently viewed sprint in the new merged list
+        let nextView = merged.find(s => s.id === currentViewId)
+        
+        // If not found (maybe ID changed due to merge), try to find by name of the previous view
+        if (!nextView && viewingSprintRef.current) {
+            nextView = merged.find(s => s.name === viewingSprintRef.current?.name)
+        }
+        
+        // If still not found, default to Active -> Planned
+        if (!nextView) {
+            nextView = merged.find(s => s.status === 'active') ??
+                       merged.find(s => s.status === 'planned') ??
+                       null
+        }
+        
+        viewingSprintRef.current = nextView
+        setViewingSprint(nextView)
       } catch {
       }
 
@@ -790,7 +953,7 @@ export default function SprintBoard({
   const backlogTasks = tasks.filter(t => {
     const belongsToProject = t.projectId === projectId
     const isInDependency = Array.isArray(t.teamDependencyIds) && t.teamDependencyIds.includes(projectId)
-    return (belongsToProject || isInDependency) && !activeSprintTaskIds.has(t.id)
+    return (belongsToProject || isInDependency) && !activeSprintTaskIds.has(t.id) && t.status !== 'done'
   })
 
   // Sprint tasks
@@ -815,8 +978,7 @@ export default function SprintBoard({
     setShowCreate(false)
     toast(`✓ สร้าง "${sprint.name}" เรียบร้อยแล้ว${activeSprint ? ' (Planned)' : ' (Active)'}`, 'success')
     try {
-      await sprintService.createSprint({
-        id: sprint.id,
+      const createdSprint = await sprintService.createSprint({
         projectId,
         name: sprint.name,
         goal: sprint.goal,
@@ -828,7 +990,29 @@ export default function SprintBoard({
         status: sprint.status,
         completedAt: sprint.completedAt ?? null,
       })
-    } catch {
+
+      // Update local sprint ID with real ID from server
+      const updatedWithRealId = sprintsRef.current.map(s => 
+        s.id === sprint.id ? { ...s, id: createdSprint.id } : s
+      )
+      persist(updatedWithRealId)
+      
+      // If we are currently viewing the temp sprint, update the view state too
+      if (viewingSprint?.id === sprint.id) {
+         const newView = { ...sprint, id: createdSprint.id }
+         setViewingSprint(newView)
+         viewingSprintRef.current = newView
+      }
+    } catch (e: any) {
+      console.error('Create sprint failed:', e)
+      toast(`สร้าง Sprint ไม่สำเร็จ: ${e.message}`, 'error')
+      // Revert from local state
+      const reverted = sprintsRef.current.filter(s => s.id !== sprint.id)
+      persist(reverted)
+      if (viewingSprint?.id === sprint.id) {
+         setViewingSprint(null)
+         viewingSprintRef.current = null
+      }
     }
   }
 
@@ -846,7 +1030,7 @@ export default function SprintBoard({
     toast(`✓ เพิ่ม ${ids.length} task ลงใน ${currentView.name}`, 'success')
   }
 
-  const handleCompleteSprint = async () => {
+  const handleCompleteSprint = async (action: 'backlog' | 'next_sprint', nextSprintId?: string) => {
     if (effectiveReadOnly) {
       toast('Guest ดูอย่างเดียว ปิด Sprint ไม่ได้', 'error')
       return
@@ -854,21 +1038,81 @@ export default function SprintBoard({
     if (!currentView) return
     const snapshots = sprintTasks.map(t => ({ id: t.id, title: t.title, status: t.status, priority: t.priority, assignee: t.assignee, points: t.points }))
     const doneTaskIds = doneTasks.map(t => t.id)
-    const updated = sprints.map(s => s.id === currentView.id
-      ? { ...s, status: 'completed' as const, completedAt: new Date().toISOString(), taskSnapshots: snapshots, taskIds: doneTaskIds }
-      : s
-    )
+    const notDoneTaskIds = sprintTasks.filter(t => t.status !== 'done').map(t => t.id)
+
+    const updated = sprints.map(s => {
+      // 1. Complete the current sprint
+      if (s.id === currentView.id) {
+        return { 
+          ...s, 
+          status: 'completed' as const, 
+          completedAt: new Date().toISOString(), 
+          taskSnapshots: snapshots, 
+          taskIds: doneTaskIds // Only keep done tasks in the completed sprint
+        }
+      }
+      
+      // 2. Activate next sprint if available
+      // If user selected "next_sprint", move tasks there.
+      // If user selected "backlog", we still might want to activate the next planned sprint?
+      // The requirement is "Complete Sprint แล้วให้ปรับให้sprintต่อไปactive".
+      // So if nextSprintId is provided (it defaults to first planned sprint), we activate it.
+      if (nextSprintId && s.id === nextSprintId) {
+        let newIds = s.taskIds
+        if (action === 'next_sprint') {
+          // Add incomplete tasks to next sprint, avoiding duplicates
+          newIds = [...new Set([...s.taskIds, ...notDoneTaskIds])]
+        }
+        return { ...s, taskIds: newIds, status: 'active' as const }
+      }
+      
+      return s
+    })
+
     persist(updated)
     setShowCompleteModal(false)
-    toast(`🎉 "${currentView.name}" เสร็จสมบูรณ์! Completed ${doneTasks.length}/${sprintTasks.length} tasks`, 'success')
+    
+    let message = `🎉 "${currentView.name}" เสร็จสมบูรณ์! Completed ${doneTasks.length}/${sprintTasks.length} tasks`
+    if (notDoneTaskIds.length > 0) {
+      if (action === 'next_sprint' && nextSprintId) {
+        const targetSprint = sprints.find(s => s.id === nextSprintId)
+        message += `. Moved ${notDoneTaskIds.length} tasks to ${targetSprint?.name ?? 'next sprint'}.`
+      } else {
+        message += `. ${notDoneTaskIds.length} tasks returned to backlog.`
+      }
+    }
+    
+    const activatedSprint = updated.find(s => s.id === nextSprintId)
+    if (activatedSprint && activatedSprint.status === 'active') {
+       message += ` Started "${activatedSprint.name}".`
+    }
+
+    toast(message, 'success')
+
     const completed = updated.find(s => s.id === currentView.id)!
     setViewingCompleted(completed)
-    setViewingSprint(null)
+    // If we activated a new sprint, switch view to it
+    if (nextSprintId) {
+        const nextActive = updated.find(s => s.id === nextSprintId)
+        if (nextActive) {
+            setViewingSprint(nextActive)
+            viewingSprintRef.current = nextActive
+        } else {
+            setViewingSprint(null)
+        }
+    } else {
+        setViewingSprint(null)
+    }
+
     try {
       await sprintService.updateSprint(currentView.id, {
         status: 'completed',
         completedAt: completed.completedAt ?? null,
       })
+      
+      if (nextSprintId) {
+        await sprintService.updateSprint(nextSprintId, { status: 'active' })
+      }
     } catch {
     }
   }
@@ -880,6 +1124,11 @@ export default function SprintBoard({
     }
     const sprint = sprints.find(s => s.id === sprintId)
     if (!sprint) return
+    
+    // Optimistic update
+    const previousSprints = [...sprints]
+    const previousViewingSprint = viewingSprint
+
     const updated = sprints.filter(s => s.id !== sprintId)
     persist(updated)
     // If we were viewing this sprint, switch to next available
@@ -888,10 +1137,30 @@ export default function SprintBoard({
       setViewingSprint(next)
       viewingSprintRef.current = next
     }
-    toast(`ลบ "${sprint.name}" เรียบร้อยแล้ว`, 'info')
+    
+    toast(`กำลังลบ "${sprint.name}"...`, 'info')
+    
     try {
+      // 1. Unassign tasks from this sprint in DB (to prevent FK violations)
+      if (sprint.taskIds && sprint.taskIds.length > 0) {
+        await Promise.all(sprint.taskIds.map(tid => 
+          taskService.updateTask(tid, { sprintId: null }).catch(() => {})
+        ))
+      }
+
+      // 2. Delete sprint
       await sprintService.deleteSprint(sprintId)
-    } catch {
+      toast(`ลบ "${sprint.name}" เรียบร้อยแล้ว`, 'success')
+    } catch (e: any) {
+      console.error('Delete sprint failed:', e)
+      toast(`ลบไม่สำเร็จ: ${e.message || 'Unknown error'}`, 'error')
+      
+      // Revert state if failed
+      persist(previousSprints)
+      if (previousViewingSprint?.id === sprintId) {
+        setViewingSprint(previousViewingSprint)
+        viewingSprintRef.current = previousViewingSprint
+      }
     }
   }
 
@@ -1224,7 +1493,7 @@ export default function SprintBoard({
         <AddBacklogModal tasks={backlogTasks} sprint={currentView} onClose={() => setShowAddBacklog(false)} onAdd={handleAddTasks} />
       )}
       {showCompleteModal && currentView && (
-        <CompleteSprintModal sprint={currentView} tasks={tasks} onClose={() => setShowCompleteModal(false)} onConfirm={handleCompleteSprint} />
+        <CompleteSprintModal sprint={currentView} tasks={tasks} sprints={sprints} onClose={() => setShowCompleteModal(false)} onConfirm={handleCompleteSprint} />
       )}
       {pendingDelete && (
         <DeleteSprintModal

@@ -369,7 +369,7 @@ export const sprintService = {
   },
 
   createSprint: async (input: {
-    id: string
+    id?: string
     projectId: number
     name: string
     goal?: string
@@ -382,13 +382,18 @@ export const sprintService = {
     completedAt?: string | null
   }): Promise<SprintRecord> => {
     const insertPayload: any = {
-      id: input.id,
       project_id: input.projectId,
       name: input.name,
       start_date: input.startDate,
       end_date: input.endDate,
       duration: input.duration,
       status: input.status,
+    }
+    
+    // Only include ID if it's a valid UUID (not a temp one) or if we really want to force it.
+    // Usually we let Supabase generate it.
+    if (input.id && !input.id.startsWith('sprint_')) {
+        insertPayload.id = input.id
     }
 
     if (input.goal !== undefined) insertPayload.goal = input.goal
@@ -522,12 +527,13 @@ export const taskService = {
     if (task.reporter !== undefined) {
       insertPayload.reporter = task.reporter
     }
-    if (task.impact !== undefined) {
-      insertPayload.impact = task.impact
-    }
-    if (task.urgency !== undefined) {
-      insertPayload.urgency = task.urgency
-    }
+    // Impact and Urgency are removed
+    // if (task.impact !== undefined) {
+    //   insertPayload.impact = task.impact
+    // }
+    // if (task.urgency !== undefined) {
+    //   insertPayload.urgency = task.urgency
+    // }
     if (task.priorityLevel !== undefined) {
       insertPayload.priority_level = task.priorityLevel
     }
@@ -539,6 +545,9 @@ export const taskService = {
     }
     if (task.actualStartDate !== undefined) {
       insertPayload.actual_start_date = task.actualStartDate
+    }
+    if (task.actualEndDate !== undefined) {
+      insertPayload.actual_end_date = task.actualEndDate
     }
     if (task.plannedEstimatedHours !== undefined) {
       insertPayload.planned_estimated_hours = task.plannedEstimatedHours
@@ -558,6 +567,10 @@ export const taskService = {
     if (task.ownerId !== undefined) {
       insertPayload.owner_id = task.ownerId
     }
+    // Color removed
+    // if (task.color !== undefined) {
+    //   insertPayload.color = task.color
+    // }
 
     const { data, error } = await supabase
       .from('cards')
@@ -589,18 +602,21 @@ export const taskService = {
     if (task.projectId !== undefined) updatePayload.project_id = task.projectId
     if (task.teamDependencyIds !== undefined) updatePayload.team_dependencies = task.teamDependencyIds ?? []
     if (task.reporter !== undefined) updatePayload.reporter = task.reporter
-    if (task.impact !== undefined) updatePayload.impact = task.impact
-    if (task.urgency !== undefined) updatePayload.urgency = task.urgency
+    // Impact and Urgency are removed
+    // if (task.impact !== undefined) updatePayload.impact = task.impact
+    // if (task.urgency !== undefined) updatePayload.urgency = task.urgency
     if (task.priorityLevel !== undefined) updatePayload.priority_level = task.priorityLevel
     if (task.plannedStartDate !== undefined) updatePayload.planned_start_date = task.plannedStartDate
     if (task.plannedEndDate !== undefined) updatePayload.planned_end_date = task.plannedEndDate
     if (task.actualStartDate !== undefined) updatePayload.actual_start_date = task.actualStartDate
+    if (task.actualEndDate !== undefined) updatePayload.actual_end_date = task.actualEndDate
     if (task.plannedEstimatedHours !== undefined) updatePayload.planned_estimated_hours = task.plannedEstimatedHours
     if (task.actualEstimatedHours !== undefined) updatePayload.actual_estimated_hours = task.actualEstimatedHours
     if (task.labels !== undefined) updatePayload.labels = task.labels
     if (task.cardLevel !== undefined) updatePayload.card_level = task.cardLevel
     if (task.sprintId !== undefined) updatePayload.sprint_id = task.sprintId
     if (task.ownerId !== undefined) updatePayload.owner_id = task.ownerId
+    // if (task.color !== undefined) updatePayload.color = task.color
 
     console.log('[API] updateTask payload:', { taskId: id, updatePayload })
 

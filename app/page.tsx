@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import Sidebar from '@/components/Sidebar'
@@ -156,6 +156,9 @@ export default function Home() {
 
   const [activeTab, setActiveTab] = useState('overview')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  
+  // Ref for modal click handling - must be at top level
+  const mouseDownTargetProject = useRef<EventTarget | null>(null)
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type })
@@ -932,10 +935,15 @@ export default function Home() {
       {isCreateProjectModalOpen && (
         <div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-          onClick={() => { setIsCreateProjectModalOpen(false); resetCreateForm() }}
+          onMouseDown={(e) => { mouseDownTargetProject.current = e.target }}
+          onClick={(e) => {
+            if (mouseDownTargetProject.current === e.currentTarget) {
+              setIsCreateProjectModalOpen(false); resetCreateForm()
+            }
+          }}
         >
           <div
-            className="bg-white rounded-2xl w-full max-w-lg mx-4 shadow-xl"
+            className="bg-white rounded-2xl w-full max-w-3xl mx-4 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">

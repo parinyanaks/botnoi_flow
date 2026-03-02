@@ -49,6 +49,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
   const isGuest = user?.role === 'guest'
   const teamDependencyDropdownRef = useRef<HTMLDivElement>(null)
   const [isTeamDependencyOpen, setIsTeamDependencyOpen] = useState(false)
+  const mouseDownTarget = useRef<EventTarget | null>(null)
 
   const [title, setTitle]                 = useState('')
   const [description, setDescription]     = useState('')
@@ -60,7 +61,10 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
   const [plannedStartDate, setPlannedStartDate] = useState('')
   const [plannedEndDate, setPlannedEndDate]           = useState('')
   const [actualStartDate, setActualStartDate]         = useState('')
+  const [actualEndDate, setActualEndDate]             = useState('')
   const [plannedEstimatedHours, setPlannedEstimatedHours] = useState('0')
+  const [actualEstimatedHours, setActualEstimatedHours]   = useState('0')
+  const [points, setPoints]               = useState(0)
   const [cardLevel, setCardLevel]         = useState<CardLevel>('task')
   const [projects, setProjects]           = useState<Project[]>([])
   const [projectId, setProjectId]         = useState<number | null>(null)
@@ -130,8 +134,8 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
   const reset = () => {
     setTitle(''); setDescription(''); setAssignee(''); setReporter(user?.name || '')
     setStatus('todo'); setPriorityLevel('P1'); setImpact('high')
-    setPlannedStartDate(''); setPlannedEndDate(''); setActualStartDate('')
-    setPlannedEstimatedHours('0'); setCardLevel('task'); setTeamDependencyIds([])
+    setPlannedStartDate(''); setPlannedEndDate(''); setActualStartDate(''); setActualEndDate('')
+    setPlannedEstimatedHours('0'); setActualEstimatedHours('0'); setPoints(0); setCardLevel('task'); setTeamDependencyIds([])
     setError('')
   }
 
@@ -151,20 +155,21 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
         title,
         description,
         status,
-        priority: impact === 'high' ? 'high' : impact === 'low' ? 'low' : 'medium',
+        priority: 'medium', // Default to medium since we removed impact
         assignee,
         type: cardLevel as any,
-        points: 1,
+        points: points || 0,
         projectId,
         teamDependencyIds: teamDependencyIds.length > 0 ? teamDependencyIds : null,
         reporter: reporter || user?.name || '',
-        impact,
-        urgency: 'medium',
+        // impact, // Removed
+        // urgency: 'medium', // Removed
         priorityLevel,
         plannedStartDate: plannedStartDate ? new Date(plannedStartDate) : null,
         plannedEndDate: plannedEndDate ? new Date(plannedEndDate) : null,
         actualStartDate: actualStartDate ? new Date(actualStartDate) : null,
         plannedEstimatedHours: plannedEstimatedHours === '' ? null : Number(plannedEstimatedHours),
+        actualEstimatedHours: actualEstimatedHours === '' ? null : Number(actualEstimatedHours),
         cardLevel,
         ownerId: user?.id || 0,
       })
@@ -183,8 +188,16 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
   const sel  = base + ' appearance-none pr-8'
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={handleClose}>
-      <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl flex flex-col max-h-[92vh]"
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onMouseDown={(e) => { mouseDownTarget.current = e.target }}
+      onClick={(e) => {
+        if (mouseDownTarget.current === e.currentTarget) {
+          handleClose()
+        }
+      }}
+    >
+      <div className="bg-white rounded-xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}>
 
         {/* ── Header ── */}
@@ -318,35 +331,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
             </div>
           </div>
 
-          {/* Priority (impact level) | Impact */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority</label>
-              <div className="relative">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
-                  <PBadge v={priorityLevel} />
-                </div>
-                <select value={priorityLevel} onChange={(e) => setPriorityLevel(e.target.value as PriorityLevel)} className={sel + ' pl-10'}>
-                  <option value="P0">P0</option>
-                  <option value="P1">P1</option>
-                  <option value="P2">P2</option>
-                  <option value="P3">P3</option>
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Impact</label>
-              <div className="relative">
-                <select value={impact} onChange={(e) => setImpact(e.target.value as ImpactLevel)} className={sel}>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-          </div>
+
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
@@ -366,12 +351,35 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
               <input type="date" value={actualStartDate} onChange={(e) => setActualStartDate(e.target.value)} className={base} />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Actual End Date</label>
+              <input type="date" value={actualEndDate} onChange={(e) => setActualEndDate(e.target.value)} className={base} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Planned Estimated Hours</label>
               <div className="relative">
                 <input type="number" value={plannedEstimatedHours} onChange={(e) => setPlannedEstimatedHours(e.target.value)}
                   className={base + ' pr-8'} min="0" step="0.5" placeholder="0" />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">h</span>
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Actual Estimated Hours</label>
+              <div className="relative">
+                <input type="number" value={actualEstimatedHours} onChange={(e) => setActualEstimatedHours(e.target.value)}
+                  className={base + ' pr-8'} min="0" step="0.5" placeholder="0" />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">h</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Story Points</label>
+              <input type="number" value={points} onChange={(e) => setPoints(parseInt(e.target.value) || 0)}
+                className={base} min="0" step="1" placeholder="0" />
             </div>
           </div>
 
