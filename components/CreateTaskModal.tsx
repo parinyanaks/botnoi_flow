@@ -62,8 +62,8 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
   const [plannedEndDate, setPlannedEndDate]           = useState('')
   const [actualStartDate, setActualStartDate]         = useState('')
   const [actualEndDate, setActualEndDate]             = useState('')
-  const [plannedEstimatedHours, setPlannedEstimatedHours] = useState('0')
-  const [actualEstimatedHours, setActualEstimatedHours]   = useState('0')
+  const [plannedEstimatedHours, setPlannedEstimatedHours] = useState('')
+  const [actualEstimatedHours, setActualEstimatedHours]   = useState('')
   const [points, setPoints]               = useState(0)
   const [cardLevel, setCardLevel]         = useState<CardLevel>('task')
   const [projects, setProjects]           = useState<Project[]>([])
@@ -135,7 +135,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
     setTitle(''); setDescription(''); setAssignee(''); setReporter(user?.name || '')
     setStatus('todo'); setPriorityLevel('P1'); setImpact('high')
     setPlannedStartDate(''); setPlannedEndDate(''); setActualStartDate(''); setActualEndDate('')
-    setPlannedEstimatedHours('0'); setActualEstimatedHours('0'); setPoints(0); setCardLevel('task'); setTeamDependencyIds([])
+    setPlannedEstimatedHours(''); setActualEstimatedHours(''); setPoints(0); setCardLevel('task'); setTeamDependencyIds([])
     setError('')
   }
 
@@ -168,6 +168,7 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, curren
         plannedStartDate: plannedStartDate ? new Date(plannedStartDate) : null,
         plannedEndDate: plannedEndDate ? new Date(plannedEndDate) : null,
         actualStartDate: actualStartDate ? new Date(actualStartDate) : null,
+        actualEndDate: actualEndDate ? new Date(actualEndDate) : null,
         plannedEstimatedHours: plannedEstimatedHours === '' ? null : Number(plannedEstimatedHours),
         actualEstimatedHours: actualEstimatedHours === '' ? null : Number(actualEstimatedHours),
         cardLevel,

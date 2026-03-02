@@ -81,7 +81,6 @@ interface BacklogViewProps {
 export default function BacklogView({
   tasks,
   projectId,
-  projectPrefix,
   onCreateTask,
   onTaskClick,
   onDeleteTask,
@@ -507,7 +506,7 @@ export default function BacklogView({
                       title: 'ลบ Task ที่เลือก?',
                       message: `คุณต้องการลบ ${selected.size} task ที่เลือกหรือไม่?`,
                       onConfirm: () => {
-                        ;[...selected].forEach(id => onDeleteTask(id))
+                        Array.from(selected).forEach(id => onDeleteTask(id))
                         setSelected(new Set())
                       },
                     })

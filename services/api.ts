@@ -1,16 +1,9 @@
 import { supabase } from '@/lib/supabaseClient'
-import { Task } from '@/types/card'
+import type { Task, Project as CardProject } from '@/types/card'
 import { User, AuthResponse, UserRole } from '@/types/auth'
 import { normalizeCardColor } from '@/lib/colors'
 
-export interface Project {
-  id: number
-  name: string
-  prefix?: string | null
-  description?: string | null
-  assignee?: string | null
-  color?: string
-}
+export type Project = CardProject
 
 export type SprintStatus = 'active' | 'completed' | 'planned'
 
@@ -26,6 +19,7 @@ export interface SprintRecord {
   label?: string | null
   status: SprintStatus
   completedAt?: string | null
+  actualEndDate?: string | null
 }
 
 const mapSupabaseUserToUser = (supabaseUser: any): User => {
@@ -56,6 +50,7 @@ const mapSprintRowToRecord = (row: any): SprintRecord => {
     label: row.label ?? null,
     status: (row.status ?? 'planned') as SprintStatus,
     completedAt: row.completed_at ?? null,
+    actualEndDate: row.actual_end_date ?? null,
   }
 }
 
@@ -103,6 +98,7 @@ const mapTaskRowToTask = (row: any): Task => {
     plannedStartDate: row.planned_start_date ? new Date(row.planned_start_date) : null,
     plannedEndDate: row.planned_end_date ? new Date(row.planned_end_date) : null,
     actualStartDate: row.actual_start_date ? new Date(row.actual_start_date) : null,
+    actualEndDate: row.actual_end_date ? new Date(row.actual_end_date) : null,
     plannedEstimatedHours: row.planned_estimated_hours ?? null,
     actualEstimatedHours: row.actual_estimated_hours ?? null,
     labels: row.labels ?? undefined,
@@ -217,10 +213,17 @@ export const projectService = {
       throw error
     }
 
-    return (data || []) as Project[]
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      prefix: row.prefix ?? null,
+      description: row.description ?? null,
+      assignee: row.assignee ?? null,
+      color: row.color ? normalizeCardColor(row.color) : undefined,
+    })) as Project[]
   },
 
-  createProject: async (input: { name: string; prefix: string; description?: string | null; assignee?: string | null; color?: string | null }): Promise<Project> => {
+  createProject: async (input: { name: string; prefix: string; description?: string | null; assignee?: string | null; color?: Project['color'] | null }): Promise<Project> => {
     const insertPayload: any = {
       name: input.name,
       prefix: input.prefix,
@@ -263,12 +266,19 @@ export const projectService = {
       throw new Error('Failed to create project')
     }
 
-    return data as Project
+    return {
+      id: (data as any).id,
+      name: (data as any).name,
+      prefix: (data as any).prefix ?? null,
+      description: (data as any).description ?? null,
+      assignee: (data as any).assignee ?? null,
+      color: (data as any).color ? normalizeCardColor((data as any).color) : undefined,
+    } as Project
   },
 
   updateProject: async (
-    id: string,
-    input: { name?: string; prefix?: string; description?: string | null; assignee?: string | null; color?: string | null }
+    id: number | string,
+    input: { name?: string; prefix?: string; description?: string | null; assignee?: string | null; color?: Project['color'] | null }
   ): Promise<Project> => {
     const updatePayload: any = {}
     if (input.name !== undefined) updatePayload.name = input.name
@@ -312,10 +322,17 @@ export const projectService = {
       throw new Error('Failed to update project')
     }
 
-    return data as Project
+    return {
+      id: (data as any).id,
+      name: (data as any).name,
+      prefix: (data as any).prefix ?? null,
+      description: (data as any).description ?? null,
+      assignee: (data as any).assignee ?? null,
+      color: (data as any).color ? normalizeCardColor((data as any).color) : undefined,
+    } as Project
   },
 
-  deleteProject: async (id: string): Promise<void> => {
+  deleteProject: async (id: number | string): Promise<void> => {
     const { error } = await supabase
       .from('projects')
       .delete()
@@ -380,6 +397,7 @@ export const sprintService = {
     label?: string
     status: SprintStatus
     completedAt?: string | null
+    actualEndDate?: string | null
   }): Promise<SprintRecord> => {
     const insertPayload: any = {
       project_id: input.projectId,
@@ -400,6 +418,7 @@ export const sprintService = {
     if (input.capacity !== undefined) insertPayload.capacity = input.capacity
     if (input.label !== undefined) insertPayload.label = input.label
     if (input.completedAt !== undefined) insertPayload.completed_at = input.completedAt
+    if (input.actualEndDate !== undefined) insertPayload.actual_end_date = input.actualEndDate
 
     const { data, error } = await supabase
       .from('sprints')
@@ -430,6 +449,7 @@ export const sprintService = {
       label?: string | null
       status?: SprintStatus
       completedAt?: string | null
+      actualEndDate?: string | null
     }
   ): Promise<SprintRecord> => {
     const updatePayload: any = {}
@@ -442,6 +462,7 @@ export const sprintService = {
     if (input.label !== undefined) updatePayload.label = input.label
     if (input.status !== undefined) updatePayload.status = input.status
     if (input.completedAt !== undefined) updatePayload.completed_at = input.completedAt
+    if (input.actualEndDate !== undefined) updatePayload.actual_end_date = input.actualEndDate
 
     const { data, error } = await supabase
       .from('sprints')

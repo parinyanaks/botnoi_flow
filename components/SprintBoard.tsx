@@ -25,6 +25,7 @@ export interface Sprint {
   projectId: number
   completedAt?: string
   taskSnapshots?: Array<{ id: string; title: string; status: string; priority: string; assignee?: string; points?: number }>
+  actualEndDate?: string | null
 }
 
 // ─── Module-level drag state (shared across all KanbanCol instances) ──────────
@@ -396,7 +397,7 @@ function AddBacklogModal({ tasks, sprint, onClose, onAdd }: {
           <span className="text-sm text-gray-500">{selected.size} ของ {list.length} รายการที่เลือก</span>
           <div className="flex gap-3">
             <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
-            <button onClick={() => onAdd([...selected])} disabled={selected.size === 0}
+            <button onClick={() => onAdd(Array.from(selected))} disabled={selected.size === 0}
               className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed">
               Add to Sprint ({selected.size})
             </button>
@@ -737,16 +738,17 @@ export default function SprintBoard({
         const mappedRemote: Sprint[] = remote.map(r => ({
           id: r.id,
           name: r.name,
-          goal: r.goal,
+          goal: r.goal ?? '',
           startDate: r.startDate,
           endDate: r.endDate,
-          duration: r.duration,
-          capacity: r.capacity,
-          label: r.label,
+          duration: r.duration ?? '2 weeks',
+          capacity: r.capacity ?? '',
+          label: r.label ?? '',
           status: r.status,
           taskIds: [],
           projectId: r.projectId,
           completedAt: r.completedAt ?? undefined,
+          actualEndDate: r.actualEndDate ?? null,
         }))
         const latestLocal = loadSprints(projectId)
         const byId = new Map(latestLocal.map(s => [s.id, s]))
@@ -843,11 +845,11 @@ export default function SprintBoard({
         // Or just pick a default.
         
         // Try to find the currently viewed sprint in the new merged list
-        let nextView = merged.find(s => s.id === currentViewId)
+        let nextView: Sprint | null = merged.find(s => s.id === currentViewId) ?? null
         
         // If not found (maybe ID changed due to merge), try to find by name of the previous view
         if (!nextView && viewingSprintRef.current) {
-            nextView = merged.find(s => s.name === viewingSprintRef.current?.name)
+            nextView = merged.find(s => s.name === viewingSprintRef.current?.name) ?? null
         }
         
         // If still not found, default to Active -> Planned
@@ -963,7 +965,7 @@ export default function SprintBoard({
   const doneTasks = sprintTasks.filter(t => t.status === 'done')
   const progressPct = sprintTasks.length > 0 ? Math.round((doneTasks.length / sprintTasks.length) * 100) : 0
 
-  const members = [...new Set(sprintTasks.map(t => t.assignee).filter(Boolean))] as string[]
+  const members = Array.from(new Set(sprintTasks.map(t => t.assignee).filter(Boolean))) as string[]
 
   // ── Handlers ──
   const handleCreate = async (data: Omit<Sprint, 'id' | 'status' | 'taskIds' | 'projectId'>) => {
@@ -1023,7 +1025,7 @@ export default function SprintBoard({
     }
     if (!currentView) return
     const updated = sprints.map(s =>
-      s.id === currentView.id ? { ...s, taskIds: [...new Set([...s.taskIds, ...ids])] } : s
+      s.id === currentView.id ? { ...s, taskIds: Array.from(new Set([...s.taskIds, ...ids])) } : s
     )
     persist(updated)
     setShowAddBacklog(false)
@@ -1061,7 +1063,7 @@ export default function SprintBoard({
         let newIds = s.taskIds
         if (action === 'next_sprint') {
           // Add incomplete tasks to next sprint, avoiding duplicates
-          newIds = [...new Set([...s.taskIds, ...notDoneTaskIds])]
+          newIds = Array.from(new Set([...s.taskIds, ...notDoneTaskIds]))
         }
         return { ...s, taskIds: newIds, status: 'active' as const }
       }
@@ -1108,6 +1110,7 @@ export default function SprintBoard({
       await sprintService.updateSprint(currentView.id, {
         status: 'completed',
         completedAt: completed.completedAt ?? null,
+        actualEndDate: new Date().toISOString(),
       })
       
       if (nextSprintId) {
@@ -1309,7 +1312,7 @@ export default function SprintBoard({
                     <BookOpen className="w-3.5 h-3.5" /> From Backlog
                     {backlogTasks.length > 0 && <span className="bg-blue-100 text-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{backlogTasks.length}</span>}
                   </button>
-                  {currentView && currentView.status !== 'completed' && (
+                  {currentView && (
                     <button
                       onClick={effectiveReadOnly ? undefined : () => setShowCompleteModal(true)}
                       disabled={effectiveReadOnly}

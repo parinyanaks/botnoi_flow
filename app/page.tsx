@@ -415,7 +415,7 @@ export default function Home() {
     return { name, initials: initials.toUpperCase() }
   }
 
-  const handleSelectProject = (id: string) => {
+  const handleSelectProject = (id: number | string) => {
     setActiveTab('overview')
     const p = new URLSearchParams(searchParams.toString())
     p.set('projectId', String(id))
