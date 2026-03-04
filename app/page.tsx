@@ -156,7 +156,7 @@ export default function Home() {
 
   const [activeTab, setActiveTab] = useState('overview')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  
+
   // Ref for modal click handling - must be at top level
   const mouseDownTargetProject = useRef<EventTarget | null>(null)
 
@@ -180,7 +180,12 @@ export default function Home() {
     if (!authLoading && isAuthenticated) {
       const fetchProjects = async () => {
         try {
-          const fresh = (await projectService.getProjects()) || []
+          let fresh = (await projectService.getProjects()) || []
+          // Guest users only see their invited projects
+          if (isGuest && user?.projectIds && user.projectIds.length > 0) {
+            const allowedIds = user.projectIds.map(Number)
+            fresh = fresh.filter(p => allowedIds.includes(Number(p.id)))
+          }
           setProjects(applyLocalProjectColors(fresh))
         }
         catch { setProjects([]) }
@@ -214,7 +219,7 @@ export default function Home() {
   const handleCloseModal = () => setSelectedTask(null)
 
   const handleUpdateTask = async (updatedTask: Task) => {
-    try { 
+    try {
       console.log('[handleUpdateTask] Updating task:', {
         id: updatedTask.id,
         teamDependencyIds: updatedTask.teamDependencyIds,
@@ -354,7 +359,7 @@ export default function Home() {
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.setItem(`${PROJECT_COLOR_KEY_PREFIX}${selectedProjectId}`, editColor)
-        } catch {}
+        } catch { }
       }
       const fresh = (await projectService.getProjects()) || []
       setProjects(applyLocalProjectColors(fresh))
@@ -393,8 +398,8 @@ export default function Home() {
 
   // ── Stats ──
   const getProjectStats = (projectId: number) => {
-    const pt = tasks.filter(t => 
-      t.projectId === projectId || 
+    const pt = tasks.filter(t =>
+      t.projectId === projectId ||
       (t.teamDependencyIds?.includes(projectId) ?? false)
     )
     const total = pt.length
@@ -584,7 +589,7 @@ export default function Home() {
                       {/* Actions */}
                       <button className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/>
+                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
                         </svg>
                       </button>
                     </div>
@@ -600,11 +605,10 @@ export default function Home() {
                         <button
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id)}
-                          className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                            activeTab === tab.id
-                              ? 'text-blue-600 border-blue-600'
-                              : 'text-gray-400 border-transparent hover:text-gray-700'
-                          }`}
+                          className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${activeTab === tab.id
+                            ? 'text-blue-600 border-blue-600'
+                            : 'text-gray-400 border-transparent hover:text-gray-700'
+                            }`}
                         >
                           {tab.label}
                         </button>
@@ -761,7 +765,7 @@ export default function Home() {
                             const timeAgo = ['5 mins ago', '12 mins ago', '1 hour ago', '2 hours ago', '3 hours ago'][i] || '—'
                             const action = statusLabel[task.status] ?? 'updated'
                             const initial = task.title?.charAt(0)?.toUpperCase() ?? '?'
-                            const colors = ['#6366f1','#3b82f6','#22c55e','#f59e0b','#ec4899']
+                            const colors = ['#6366f1', '#3b82f6', '#22c55e', '#f59e0b', '#ec4899']
                             const bg = colors[i % colors.length]
                             return (
                               <div key={task.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
@@ -796,15 +800,15 @@ export default function Home() {
                   tasks={tasks}
                   projectId={selectedProjectId!}
                   onTaskClick={handleTaskClick}
-                onTaskStatusChange={handleTaskStatusChange}
-                onCreateTask={() => {
-                  if (isGuest) {
-                    showToast('Guest ดูอย่างเดียว สร้าง Task ไม่ได้', 'error')
-                    return
-                  }
-                  setIsCreateModalOpen(true)
-                }}
-                readOnly={isGuest}
+                  onTaskStatusChange={handleTaskStatusChange}
+                  onCreateTask={() => {
+                    if (isGuest) {
+                      showToast('Guest ดูอย่างเดียว สร้าง Task ไม่ได้', 'error')
+                      return
+                    }
+                    setIsCreateModalOpen(true)
+                  }}
+                  readOnly={isGuest}
                 />
               )}
 
@@ -992,8 +996,8 @@ export default function Home() {
                 <textarea
                   value={projectDescription}
                   onChange={(e) => setProjectDescription(e.target.value)}
-                          rows={10}
-                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none min-h-[9rem]"
+                  rows={10}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none min-h-[9rem]"
                   placeholder="Enter task description"
                 />
               </div>

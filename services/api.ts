@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabaseClient'
 import type { Task, Project as CardProject } from '@/types/card'
 import { User, AuthResponse, UserRole } from '@/types/auth'
 import { normalizeCardColor } from '@/lib/colors'
+import type { Invitation, CreateInvitationDto } from '@/types/invitation'
+
 
 export type Project = CardProject
 
@@ -28,11 +30,18 @@ const mapSupabaseUserToUser = (supabaseUser: any): User => {
   const defaultRole: UserRole = email.endsWith('@botnoigroup.com') ? 'member' : 'guest'
   const role: UserRole = metadata.role === 'member' || metadata.role === 'guest' ? metadata.role : defaultRole
 
+  // Extract project_ids for guest users
+  let projectIds: number[] | undefined
+  if (Array.isArray(metadata.project_ids)) {
+    projectIds = metadata.project_ids.map((id: any) => Number(id)).filter((id: number) => !isNaN(id))
+  }
+
   return {
     id: 0,
     email,
     name: metadata.name || email,
     role,
+    projectIds,
     createdAt: supabaseUser.created_at ? new Date(supabaseUser.created_at) : undefined,
   }
 }
@@ -139,6 +148,17 @@ export const authService = {
     if (!data.user || !data.session) {
       throw new Error('Registration failed')
     }
+
+    // Create profile in profiles table
+    const role = email.endsWith('@botnoigroup.com') ? 'member' : 'guest'
+    await supabase
+      .from('profiles')
+      .upsert({
+        id: data.user.id,
+        full_name: name,
+        email,
+        role,
+      }, { onConflict: 'id' })
 
     const user = mapSupabaseUserToUser(data.user)
     const token = data.session.access_token
@@ -302,7 +322,7 @@ export const projectService = {
       if (input.prefix !== undefined) fallbackPayload.prefix = input.prefix
       if (input.description !== undefined) fallbackPayload.description = input.description ?? null
       if (input.assignee !== undefined) fallbackPayload.assignee = input.assignee
-      
+
       const fallbackResult = await supabase
         .from('projects')
         .update(fallbackPayload)
@@ -407,11 +427,11 @@ export const sprintService = {
       duration: input.duration,
       status: input.status,
     }
-    
+
     // Only include ID if it's a valid UUID (not a temp one) or if we really want to force it.
     // Usually we let Supabase generate it.
     if (input.id && !input.id.startsWith('sprint_')) {
-        insertPayload.id = input.id
+      insertPayload.id = input.id
     }
 
     if (input.goal !== undefined) insertPayload.goal = input.goal
@@ -657,10 +677,10 @@ export const taskService = {
       throw new Error('Failed to update task')
     }
 
-    console.log('[API] updateTask response:', { 
-      taskId: id, 
+    console.log('[API] updateTask response:', {
+      taskId: id,
       teamDependencyIds: data.team_dependencies,
-      fullData: data 
+      fullData: data
     })
 
     return mapTaskRowToTask(data)
@@ -689,5 +709,65 @@ export const taskService = {
     }
 
     return (data || []).map(mapTaskRowToTask)
+  },
+}
+
+const mapInvitationRow = (row: any): Invitation => ({
+  id: row.id,
+  name: row.recipient_name,
+  email: row.recipient_email,
+  role: row.role,
+  projectIds: row.project_ids ?? null,
+  token: row.token,
+  invitedBy: row.inviter_email,
+  expiresAt: new Date(row.expires_at),
+  acceptedAt: row.accepted_at ? new Date(row.accepted_at) : null,
+  createdAt: new Date(row.created_at),
+})
+
+export const invitationService = {
+  createInvitation: async (dto: CreateInvitationDto, invitedBy: string): Promise<Invitation> => {
+    const payload: any = {
+      recipient_name: dto.name,
+      recipient_email: dto.email,
+      role: dto.role,
+      inviter_email: invitedBy,
+    }
+    if (dto.projectIds && dto.projectIds.length > 0) {
+      payload.project_ids = dto.projectIds
+    }
+
+    const { data, error } = await supabase
+      .from('invitations')
+      .insert(payload)
+      .select('*')
+      .maybeSingle()
+
+    if (error) throw error
+    if (!data) throw new Error('Failed to create invitation')
+
+    return mapInvitationRow(data)
+  },
+
+  getInvitationByToken: async (token: string): Promise<Invitation | null> => {
+    const { data, error } = await supabase
+      .from('invitations')
+      .select('*')
+      .eq('token', token)
+      .maybeSingle()
+
+    if (error) throw error
+    if (!data) return null
+
+    return mapInvitationRow(data)
+  },
+
+  markAccepted: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('invitations')
+      .update({ accepted_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (error) throw error
   },
 }
